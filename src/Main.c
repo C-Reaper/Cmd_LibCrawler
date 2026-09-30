@@ -1,10 +1,16 @@
-#include "../inc/Library/LibCrawler.h"
+#if defined __linux__
+#include "/home/codeleaded/System/Static/Library/LibCrawler.h"
+#elif defined _WINE
+#include "/home/codeleaded/System/Static/Library/LibCrawler.h"
+#elif defined _WIN32
+#include "F:/home/codeleaded/System/Static/Library/LibCrawler.h"
+#endif
 
-int argc = 3;
-char* argv[] = { "./build/Main","./inc","./src" };
-int main(void){
+//int argc = 3;
+//char* argv[] = { "./build/Main","./inc","./src" };
+//int main(void){
 
-//int main(int argc,char* argv[]){
+int main(int argc,char* argv[]){
 	if(argc != 3 || !Files_isDir(argv[2])){
 		printf("[LibCrawler]: Args found: ");
 		for(int i = 0;i<argc;i++){
@@ -15,6 +21,8 @@ int main(void){
 		printf("\n[LibCrawler]: Usage: <inc-dir> <src-dir>\n");
 	}else{
 		LibCrawler lc = LibCrawler_New(argv[1]);
+		LibCrawler_Ignore(&lc,"Stb_Image.h");
+		LibCrawler_Ignore(&lc,"Stb_Image_Write.h");
 		
 		Vec_CStr childs = Files_GetChilds(argv[2]);
 		for(int i = 0;i<childs.size;i++){

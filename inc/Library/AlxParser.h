@@ -1943,18 +1943,17 @@ void Parser_ConcatKillBorders(Parser* p,TT_Type tt,int Start,int End){ // ] Star
 }
 
 void Parser_TF_Str(Parser* p);
-void Parser_Parse_CStr(Parser* p,TT_Char* cstr,CStr path){
+void Parser_Parse_CStr_S(Parser* p,TT_Char* cstr,int size,CStr path){
     String Buffer = String_New();
-    int Size = CStr_Size(cstr);
     TT_Type State = TOKEN_NONE;
 
     int ch = 1;
     int line = 1;
 
-    for(int i = 0;i<Size;i++){
+    for(int i = 0;i<size;i++){
         TT_Char c = cstr[i];
         Parser_Classify(p,&State,&Buffer,c,ch,line,path);
-        if(i==Size-1) Parser_PushToken(p,&State,&Buffer,ch,line,path);
+        if(i==size - 1) Parser_PushToken(p,&State,&Buffer,ch,line,path);
 
         if(c == '\n'){
             ch = 1;
@@ -1992,6 +1991,9 @@ void Parser_Parse_CStr(Parser* p,TT_Char* cstr,CStr path){
             CStr_Free(&cstr);
         }
     }
+}
+void Parser_Parse_CStr(Parser* p,TT_Char* cstr,CStr path){
+    Parser_Parse_CStr_S(p,cstr,CStr_Size(cstr),path);
 }
 void Parser_TF_Num(Parser* p){
     for(int i = 0;i<p->size;i++){
@@ -2309,4 +2311,4 @@ void Parser_Free(Parser* p){
     TokenMap_Free(p);
 }
 
-#endif // !ALXPARSER_HÿaT
+#endif // !ALXPARSER_Hï¿½aT
