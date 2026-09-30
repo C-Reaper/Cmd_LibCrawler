@@ -324,4 +324,4 @@ void World3D_Free(World3D* m){
 	Vector_Free(&m->trisOut);
 }
 
-#endif // !LIB3D_WORLD3D_H
+#endif // !LIB3D_WORLD3D_HImage€)

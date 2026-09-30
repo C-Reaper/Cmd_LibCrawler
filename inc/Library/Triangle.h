@@ -246,4 +246,4 @@ void Triangle_RenderXWire(unsigned int* Target,int Target_Width,int Target_Heigh
     Line_RenderX(Target,Target_Width,Target_Height,p3,p1,c,StrokeSize);
 }
 
-#endif // !TRIANGLE_H
+#endif // !TRIANGLE_H!

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "CStr.h"
 #include "String.h"
 
 #if defined __linux__
@@ -640,6 +641,17 @@ char* Files_FromPath(char* Path,char* relative){
     return comp;
 }
 
+/*
+char* Files_RelativeTo(char* path,char* relative){
+    char* full_path = Files_CompressPath(path);
+    char* full_rel = Files_CompressPath(relative);
+
+    const int change_ind = 0;
+    const int count = CStr_CountOf(full_rel,'/');
+    return NULL;
+}
+*/
+
 char* Files_DirNameStepBack(char* Path,char* other,int step){
     char* found = Files_NameStep(other,step);
     char* add = Files_FromPath(Path,found);
@@ -893,6 +905,66 @@ char Files_HasSub(char *base_path, char *sub_path) {
     #else
     #error "Platform not supported!"
     #endif
+}
+
+void Files_CpyDir(const char* src,const char* dst){
+    Files_Mkdir(dst);
+
+    char output[256];
+    Vec_CStr childs = Files_GetChilds(src);
+	
+    for(int i = 0;i<childs.size;i++){
+		CStr file = *(CStr*)Vector_Get(&childs,i);
+		char* name = basename(file);
+
+        snprintf(
+            output,
+            sizeof(output),
+            "%s/%s",dst,name
+        );
+
+        if(Files_isFile(file))      Files_Cpy(file,output);
+        else if(Files_isDir(file))  Files_CpyDir(file,output);
+        else                        printf("[Files]: CpyDir -> not a file or dir!\n");
+	}
+
+	Vec_CStr_Free(&childs);
+}
+void Files_CpyDir_Ign(const char* src,const char* dst,const char* ign[]){
+    Files_Mkdir(dst);
+
+    char output[256];
+    Vec_CStr childs = Files_GetChilds(src);
+	
+    for(int i = 0;i<childs.size;i++){
+		CStr file = *(CStr*)Vector_Get(&childs,i);
+		char* name = basename(file);
+        
+        int j = 0;
+        for(;ign[j];j++){
+            if(CStr_Cmp(name,ign[j])){
+                break;
+            }
+        }
+        if(ign[j]) continue;
+
+        snprintf(
+            output,
+            sizeof(output),
+            "%s/%s",dst,name
+        );
+
+        if(Files_isFile(file)){
+            //printf("[Files]: CpyDir_Ign -> file: %s\n",output);
+            Files_Cpy(file,output);
+        }else if(Files_isDir(file)){
+            // printf("[Files]: CpyDir_Ign -> dir: %s\n",output);
+            Files_CpyDir_Ign(file,output,ign);
+        }else
+            printf("[Files]: CpyDir_Ign -> not a file or dir!\n");
+	}
+
+	Vec_CStr_Free(&childs);
 }
 
 #endif

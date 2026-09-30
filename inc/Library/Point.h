@@ -59,4 +59,4 @@ void Point_RenderXAlpha(unsigned int* Target,int Target_Width,int Target_Height,
     Point_RenderAlpha(Target,Target_Width,Target_Height,(Vec2){ x,y },c);
 }
 
-#endif // !RAY_H
+#endif // !RAY_H`

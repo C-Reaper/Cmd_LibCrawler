@@ -48,4 +48,4 @@ typedef long double f80;
 
 _Static_assert(sizeof(f32) <= sizeof(f64), "f32 cannot be larger than f64");
 
-#endif // !TYPES_H
+#endif // !TYPES_HS`

@@ -500,4 +500,4 @@ void GHighLight_StdHL_Free(){
     
 }
 
-#endif //!TEX
+#endif //!TEX!

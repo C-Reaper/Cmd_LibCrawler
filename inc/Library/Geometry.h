@@ -654,4 +654,4 @@ void Resolve_Rect_Rect_V(Rect r1,Rect* r2,Vec2 np){
     Vector_Free(&Ips);
 }
 
-#endif // !GEOMETRY_H
+#endif // !GEOMETRY_Hd_glP

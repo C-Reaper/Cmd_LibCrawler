@@ -1926,12 +1926,23 @@ void Parser_ConcatKillBorders(Parser* p,TT_Type tt,int Start,int End){ // ] Star
         Vector_Remove(p,i);
     }
     
+
     sta = (Token*)Vector_Get(p,Start);
+    
+    const unsigned int line = sta->line;
+    const unsigned int ch = sta->ch;
+    char* const file = CStr_Cpy(sta->file);
     Token_Free(sta);
 
     String_AppendChar(&Buffer,'\0');
     *sta = Token_Move(tt,(char*)Buffer.Memory);
+    
+    sta->line = line;
+    sta->ch = ch;
+    sta->file = file;
 }
+
+void Parser_TF_Str(Parser* p);
 void Parser_Parse_CStr(Parser* p,TT_Char* cstr,CStr path){
     String Buffer = String_New();
     int Size = CStr_Size(cstr);
@@ -1953,6 +1964,8 @@ void Parser_Parse_CStr(Parser* p,TT_Char* cstr,CStr path){
     }
 
     String_Free(&Buffer);
+
+    Parser_TF_Str(p);
 
     for(int i = 0;i<p->size;i++){
         Token* t = (Token*)Vector_Get(p,i);
@@ -2075,8 +2088,6 @@ void Parser_TF_Str(Parser* p){
         }
     
     }
-
-    Parser_TF_Num(p);
 }
 void Parser_TF_Std(Parser* p){
     int LastIndex = -1;
@@ -2298,4 +2309,4 @@ void Parser_Free(Parser* p){
     TokenMap_Free(p);
 }
 
-#endif // !ALXPARSER_H
+#endif // !ALXPARSER_HÿaT

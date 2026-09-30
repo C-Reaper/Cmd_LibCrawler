@@ -343,4 +343,4 @@ void Circle_C_RenderGWire(float* Target,int Target_Width,int Target_Height,Vec2 
     Memset_f32((float*)(Target+(int)(yM)*Target_Width+(int)(x1)),col,(int)(x2-x1));
 }
 
-#endif // !CIRCLE_H
+#endif // !CIRCLE_Hatic/Library/Stb_Imageà;

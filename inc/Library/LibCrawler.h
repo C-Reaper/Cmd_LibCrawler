@@ -65,6 +65,8 @@ typedef struct LibCrawler {
 } LibCrawler;
 
 LibCrawler LibCrawler_New(char* dir){
+	Files_Mkdir(dir);
+
     char path[256];
 	sprintf(path,"%s/Library",dir);
 	Files_Mkdir(path);
@@ -91,10 +93,12 @@ void LibCrawler_Find(LibCrawler* pm,LibCrawlerFile* lcf){
     Parser_TF_Num(&p);
     Parser_TF_Esc(&p);
     Parser_TF_Std(&p);
-
 	//Parser_Print(&p);
 
-	for(int i = 0;i + 2<p.size;i++){
+	char changed = 0;
+	Vec_CStr new_fc = CStr_ChopDown(lcf->data,'\n');
+
+	for(int i = 0;i + 2 < p.size;i++){
 		Token* hash = (Token*)Vector_Get(&p,i);
 		Token* include = (Token*)Vector_Get(&p,i + 1);
 		Token* cstr = (Token*)Vector_Get(&p,i + 2);
@@ -102,8 +106,42 @@ void LibCrawler_Find(LibCrawler* pm,LibCrawlerFile* lcf){
 		if(hash->tt == TOKEN_HASH_POUND_SIGN && include->tt == TOKEN_STRING && cstr->tt == TOKEN_CONSTSTRING_DOUBLE){
 			if(CStr_Cmp(include->str,"include")){
 				char* cpath = NULL;
+				
 				if(cstr->str[0] == '/'){
 					cpath = CStr_Cpy(cstr->str);
+					printf("Replacing Abs Path: '%s' into (l. %u,%u)\n",cstr->str,cstr->line,cstr->ch);
+
+					if(cstr->line > 0U && cstr->ch > 0U){
+						const unsigned int line = cstr->line - 1U;
+						const unsigned int ch = cstr->ch - 1U;
+
+						CStr new_subname = Files_NameStep(cstr->str,1);
+						CStr new_name = CStr_Format("../%s/%s",basename(pm->dir),new_subname);
+
+						CStr* line_pcstr = (CStr*)Vector_Get(&new_fc,line);
+						printf("  Content: '%s'\n\n",*line_pcstr);
+
+						if(new_subname && new_name && line < new_fc.size){
+							printf("  >> %s to %s\n",new_subname,new_name);
+							
+							const unsigned int end = CStr_Find(*line_pcstr + ch + 1U,'\"');
+							
+							String line_buffer = String_Make(*line_pcstr);
+							String_RemoveCount(&line_buffer,ch + 1U,end);
+							String_Add(&line_buffer,new_name,ch + 1U);
+							String_AppendChar(&line_buffer,'\0');
+
+							CStr buffer_out = (CStr)line_buffer.Memory;
+							CStr_Set(line_pcstr,buffer_out);
+							//printf("  Set '%s' to '%s'\n",*line_pcstr,buffer_out);
+							String_Free(&line_buffer);
+
+							changed = 1;
+						}
+
+						CStr_Free(&new_name);
+						CStr_Free(&new_subname);
+					}
 				}else{
 					char* ppath = Files_Path(lcf->path);
 					cpath = Files_FromPath(ppath,cstr->str);
@@ -120,6 +158,14 @@ void LibCrawler_Find(LibCrawler* pm,LibCrawlerFile* lcf){
 			}
 		}
 	}
+
+	if(changed){
+		String output = Vec_CStr_AddUp_S(&new_fc,'\n');
+		printf(">>>>{ Write:\n'%*s'\n>>>>{ to %s\n",output.size,(char*)output.Memory,lcf->path);
+		Files_WriteT(lcf->path,output.Memory,output.size);
+		String_Free(&output);
+	}
+	Vec_CStr_Free(&new_fc);
 
 	Parser_Free(&p);
 }

@@ -7631,4 +7631,4 @@ STBIDEF int stbi_is_16_bit_from_callbacks(stbi_io_callbacks const *c, void *user
    return stbi__is_16_main(&s);
 }
 
-#endif // STB_IMAGE_IMPLEMENTATION
+#endif // STB_IMAGE_IMPLEMENTATIONÿA

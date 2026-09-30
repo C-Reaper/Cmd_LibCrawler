@@ -24,7 +24,7 @@ $(TARGET): $(SRCS)
 	$(CC) $(CFLAGS) $(INCLUDES) $(SRCS) -o $(TARGET) $(LDFLAGS)
 
 debug:
-	gdb ./$(TARGET)
+	gdb ./$(TARGET) ./inc ./src
 
 exe:
 	./$(TARGET) ./inc ./src

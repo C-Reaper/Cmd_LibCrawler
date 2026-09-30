@@ -1,8 +1,8 @@
-#include "/home/codeleaded/System/Static/Library/WindowEngine.h"
-#include "/home/codeleaded/System/Static/Library/Lib3D_Cube.h"
-#include "/home/codeleaded/System/Static/Library/Lib3D_Mathlib.h"
-#include "/home/codeleaded/System/Static/Library/Lib3D_Mesh.h"
-#include "/home/codeleaded/System/Static/Library/Lib3D_World3D.h"
+#include "../inc/Library/WindowEngine.h"
+#include "../inc/Library/Lib3D_Cube.h"
+#include "../inc/Library/Lib3D_Mathlib.h"
+#include "../inc/Library/Lib3D_Mesh.h"
+#include "../inc/Library/Lib3D_World3D.h"
 
 Camera cam;
 World3D world;

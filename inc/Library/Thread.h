@@ -367,4 +367,4 @@ void Thread_Sleep_S(Duration secs){
     #error "Unsupported platform!"
 #endif
 
-#endif //!THREAD_H
+#endif //!THREAD_HêãfS`

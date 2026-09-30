@@ -323,4 +323,4 @@ void Line_RenderX(unsigned int* Target,int Target_Width,int Target_Height,Vec2 s
 	Line_Render(Target,Target_Width,Target_Height,Line_New(s,e),c,StrokeSize);
 }
 
-#endif // !LINE_H
+#endif // !LINE_Hystem/!

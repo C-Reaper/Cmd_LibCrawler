@@ -416,7 +416,7 @@ int String_LineOfChar(String* s,int ch){
     return Lines;
 }
 
-CStr Vec_CStr_AddUp(Vec_CStr* v,char c){
+String Vec_CStr_AddUp_S(Vec_CStr* v,char c){
     String buffer = String_New();
     for(int i = 0;i<v->size;i++){
         CStr cstr = *(CStr*)Vector_Get(v,i);
@@ -424,6 +424,10 @@ CStr Vec_CStr_AddUp(Vec_CStr* v,char c){
         if(i + 1 < v->size)
             String_AppendChar(&buffer,c);
     }
+    return buffer;
+}
+CStr Vec_CStr_AddUp(Vec_CStr* v,char c){
+    String buffer = Vec_CStr_AddUp_S(v,c);
     String_AppendChar(&buffer,'\0');
     return (CStr)buffer.Memory;
 }

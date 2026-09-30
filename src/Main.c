@@ -1,8 +1,18 @@
-#include "/home/codeleaded/System/Static/Library/LibCrawler.h"
+#include "../inc/Library/LibCrawler.h"
 
-int main(int argc,char* argv[]){
-	if(argc != 3 || !Files_isDir(argv[1]) || !Files_isDir(argv[2])){
-		printf("[LibCrawler]: Usage: <inc-dir> <src-dir>\n");
+int argc = 3;
+char* argv[] = { "./build/Main","./inc","./src" };
+int main(void){
+
+//int main(int argc,char* argv[]){
+	if(argc != 3 || !Files_isDir(argv[2])){
+		printf("[LibCrawler]: Args found: ");
+		for(int i = 0;i<argc;i++){
+			printf("'%s'",argv[i]);
+			if(i + 1 < argc) printf(",");
+		}
+
+		printf("\n[LibCrawler]: Usage: <inc-dir> <src-dir>\n");
 	}else{
 		LibCrawler lc = LibCrawler_New(argv[1]);
 		
