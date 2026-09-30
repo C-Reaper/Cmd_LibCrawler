@@ -442,9 +442,10 @@ U64 U64_Parse_B(i8* s){
 }
 I64 I64_Parse(i8* s){
     if(s[0] == '0'){
-        if(s[1] == 'x') return (I64)U64_Parse_X(s + 2);
-        if(s[1] == 'o') return (I64)U64_Parse_O(s + 2);
-        if(s[1] == 'b') return (I64)U64_Parse_B(s + 2);
+        if(CStr_Size((char*)s) == 1)    return 0;
+        if(s[1] == 'x')                 return (I64)U64_Parse_X(s + 2);
+        if(s[1] == 'o')                 return (I64)U64_Parse_O(s + 2);
+        if(s[1] == 'b')                 return (I64)U64_Parse_B(s + 2);
         return I64_PARSEERROR;
     }
     return I64_Parse_D(s);
@@ -507,10 +508,14 @@ i8* U64_Get_B(U64 n){
 }
 
 
-i64 Dec_Expo(u64 Expo){
-    i64 ret = (i64)Expo - 1023;
-    ret = ret * 3 / 10 + (ret<0 ? -1 : 0);
-    return ret;
+//i64 Dec_Expo(u64 Expo){
+//    const i64 ret = (i64)Expo - (i64)1023;
+//    return ret * 3 / 10 + (ret<0 ? -1 : 0);
+//}
+i64 Dec_Expo(F64 n){
+    if(n == 0.0) return 0;
+    const i64 ex = (i64)floor(log10(F64_Abs(n)));
+    return ex;
 }
 u64 Expo_Dec(i64 Dec){
     return (u64)((i64)Dec + 1023);
@@ -531,11 +536,12 @@ u64 Dec_Of_Mant(u64 Mant,u64 length){
     return ret << 1;
 }
 u64 Dec_Of_F64Mant(F64 n){//log2(10) = 3.321928095 = 10 / 3
-    const void* ptr_n = (void*)&n;
-    const u64 bits = *(u64*)ptr_n;
-    u64 bits_expo = (bits >> 52ULL) & 0b11111111111ULL;
-
-    i64 ep = Dec_Expo(bits_expo);
+    //const void* ptr_n = (void*)&n;
+    //const u64 bits = *(u64*)ptr_n;
+    //u64 bits_expo = (bits >> 52ULL) & 0b11111111111ULL;
+    //i64 ep = Dec_Expo(bits_expo);
+    
+    i64 ep = Dec_Expo(n);
     F64 newn = F64_Abs(n) / F64_Pow10(ep) * 1.0e18;
     U64 Ipart = (U64)newn;
     return Ipart;
@@ -610,7 +616,7 @@ void F64_Print_Ex(F64 n,i8* buffer){//log10(2) = 0.301029996 = 0.3
     const u64 bits_mant = bits & ~(0xFFFULL << 52ULL);
     //const u64 bits_admt = bits | ((1023UL) << 52);
 
-    if(bits_expo == 0b11111111111){
+    if(bits_expo == 0b11111111111ULL){
         if(bits_mant == 0){
             if(bits_sign)   memcpy(buffer,"-inf",5);
             else            memcpy(buffer,"inf",4);
@@ -619,10 +625,14 @@ void F64_Print_Ex(F64 n,i8* buffer){//log10(2) = 0.301029996 = 0.3
             else            memcpy(buffer,"nan",4);
         }
         return;
+    }else if(bits_expo == 0b00000000000ULL){
+        memcpy(buffer,"0.0",4);
+        return;
     }
 
     u64 dm = Dec_Of_F64Mant(n);
-    i64 ep = Dec_Expo(bits_expo);
+    //i64 ep = Dec_Expo(bits_expo);
+    i64 ep = Dec_Expo(n);
     
     U64_Print_D(dm,buffer + bits_sign + 1);
     
@@ -677,15 +687,15 @@ F64 F64_Parse_Ex(i8* s){
     if(CStr_Cmp((char*)s,"-nan"))  return *(F64*)((u64[]){ 0xFFF0000000000001 });
     if(CStr_Cmp((char*)s,"nan"))   return *(F64*)((u64[]){ 0x7FF0000000000001 });
 
-    i32 exp = CStr_Find((char*)s,'e');
+    i64 exp = CStr_Find((char*)s,'e');
     if(exp<0) exp = CStr_Find((char*)s,'E');
     const i32 size = CStr_Size((char*)s);
 
     i8 buffer[128];
     memcpy(buffer,s,size + 1);
 
-    if(exp<0) exp = size; 
-    buffer[exp] = '\0';
+    if(exp<0)   buffer[size] = '\0';
+    else        buffer[exp] = '\0';
 
     F64 out = F64_Parse_Dc(buffer);
     if(exp>=0){

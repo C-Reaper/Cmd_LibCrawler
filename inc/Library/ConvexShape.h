@@ -1,8 +1,10 @@
 #ifndef CONVEXSHAPE_H
 #define CONVEXSHAPE_H
 
+#include "Float.h"
 #include "Vector2.h"
 #include "Line.h"
+
 #include "../Container/Vector.h"
 
 typedef struct ConvexShape {

@@ -4,6 +4,8 @@
 #if defined __linux__
 #elif defined _WIN32
 #include <windows.h>
+#elif defined __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
 #else
 #error "Platform not supported!"
 #endif
@@ -31,10 +33,24 @@ void Clipboard_Cpy(char* cstr,int size){
     SetClipboardData(CF_TEXT,hMem);
     CloseClipboard();
     
+    #elif defined __EMSCRIPTEN__
+    
+    // Clipboard nur über Browser API möglich
+    printf("[Clipboard]: Copy not fully supported in Emscripten (use JS bindings)\n");
+    EM_ASM({
+        if (navigator.clipboard) {
+            var text = UTF8ToString($0);
+            navigator.clipboard.writeText(text);
+        } else {
+            console.log("Clipboard API not available");
+        }
+    }, cstr);
+    
     #else
     #error "Platform not supported!"
     #endif
 }
+
 char* Clipboard_Paste(){
     #if defined __linux__
     
@@ -67,6 +83,11 @@ char* Clipboard_Paste(){
         CloseClipboard();
     }
     return buffer;
+    
+    #elif defined __EMSCRIPTEN__
+    
+    printf("[Clipboard]: Paste not supported synchronously in Emscripten\n");
+    return NULL;
     
     #else
     #error "Platform not supported!"

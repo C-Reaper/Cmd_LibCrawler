@@ -19,6 +19,12 @@
 #include "String.h"
 #include "Graphics.h"
 
+
+typedef struct BITMAPINFO_RGBA {
+    BITMAPINFOHEADER header;
+    DWORD masks[4]; // R, G, B, A (A ignored)
+} BITMAPINFO_RGBA;
+
 typedef struct AlxWindow {
     char* Name;
     Pixel* Buffer;
@@ -48,10 +54,14 @@ typedef struct AlxWindow {
     Timepoint PressPoint;
     unsigned short LastKey;
     unsigned short LastChar;
+    int Fullscreen;
 
+    RECT WindowedRect;
+    DWORD WindowedStyle;
+    DWORD WindowedExStyle;
     HWND hwnd;
     HDC hdc;
-    BITMAPINFO bmi;
+    BITMAPINFO_RGBA bmi;
 } AlxWindow;
 
 HCURSOR AlxWindow_CreateInvisibleCursor(){
@@ -69,11 +79,16 @@ HCURSOR AlxWindow_CreateInvisibleCursor(){
 
 void AlxWindow_Mouse_Set(AlxWindow* w,Vec2 p){
     POINT pt;
-    pt.x = (LONG)p.x;
-    pt.y = (LONG)p.y;
+    pt.x = (LONG)p.x * w->PixelWidth;
+    pt.y = (LONG)p.y * w->PixelHeight;
 
     ClientToScreen(w->hwnd,&pt);
     SetCursorPos(pt.x,pt.y);
+    
+    w->MouseX = p.x;
+    w->MouseY = p.y;
+    w->MouseBeforeX = p.x;
+    w->MouseBeforeY = p.y;
 }
 void AlxWindow_Mouse_SetInvisible(AlxWindow* w){
     static HCURSOR invisible = NULL;
@@ -100,6 +115,52 @@ void AlxWindow_Mouse_SetVisible(AlxWindow* w){
 
     SetCursor(cursor);
 }
+void AlxWindow_SetFullscreen(AlxWindow* w){
+    if(!w->Fullscreen){
+        w->WindowedStyle   = GetWindowLong(w->hwnd, GWL_STYLE);
+        w->WindowedExStyle = GetWindowLong(w->hwnd, GWL_EXSTYLE);
+        GetWindowRect(w->hwnd, &w->WindowedRect);
+
+        HMONITOR monitor = MonitorFromWindow(w->hwnd, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO mi = { sizeof(mi) };
+        GetMonitorInfo(monitor, &mi);
+
+        SetWindowLong(w->hwnd, GWL_STYLE,
+            w->WindowedStyle & ~(WS_OVERLAPPEDWINDOW));
+
+        SetWindowLong(w->hwnd, GWL_EXSTYLE,
+            w->WindowedExStyle);
+
+        SetWindowPos(w->hwnd, HWND_TOP,
+            0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
+        SetWindowPos(w->hwnd, HWND_TOP,
+            mi.rcMonitor.left,
+            mi.rcMonitor.top,
+            mi.rcMonitor.right  - mi.rcMonitor.left,
+            mi.rcMonitor.bottom - mi.rcMonitor.top,
+            SWP_NOOWNERZORDER);
+
+        w->Fullscreen = 1;
+    } else {
+        SetWindowLong(w->hwnd, GWL_STYLE, w->WindowedStyle);
+        SetWindowLong(w->hwnd, GWL_EXSTYLE, w->WindowedExStyle);
+
+        SetWindowPos(w->hwnd, NULL,
+            0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
+        SetWindowPos(w->hwnd, NULL,
+            w->WindowedRect.left,
+            w->WindowedRect.top,
+            w->WindowedRect.right  - w->WindowedRect.left,
+            w->WindowedRect.bottom - w->WindowedRect.top,
+            SWP_NOOWNERZORDER);
+
+        w->Fullscreen = 0;
+    }
+}
 
 void AlxWindow_Exit(AlxWindow* w){
     w->Running = 0;
@@ -120,7 +181,7 @@ void AlxWindow_Render(AlxWindow* w) {
         0, 0, w->Width * w->PixelWidth, w->Height * w->PixelHeight, 
         0, 0, w->Width, w->Height,
         w->Buffer, 
-        &w->bmi, 
+        (BITMAPINFO*)&w->bmi, 
         DIB_RGB_COLORS, 
         SRCCOPY
     );
@@ -174,8 +235,6 @@ LRESULT CALLBACK AlxWindow_StdWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 
         case WM_MOUSEMOVE:{
             AlxWindow* w = (AlxWindow*)GetWindowLongPtr(hwnd,GWLP_USERDATA);
-            w->MouseBeforeX = w->MouseX;
-            w->MouseBeforeY = w->MouseY;
             w->MouseX = (int)LOWORD(lParam) / (w->PixelWidth==0 ? 1 : (int)w->PixelWidth);
             w->MouseY = (int)HIWORD(lParam) / (w->PixelHeight==0 ? 1 : (int)w->PixelHeight);
             return 0;
@@ -202,13 +261,18 @@ LRESULT CALLBACK AlxWindow_StdWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 
             w->Buffer = newBuffer;
 
-            ZeroMemory(&w->bmi, sizeof(BITMAPINFO));
-            w->bmi.bmiHeader.biSize      = sizeof(BITMAPINFOHEADER);
-            w->bmi.bmiHeader.biWidth     = w->Width;
-            w->bmi.bmiHeader.biHeight    = -w->Height;
-            w->bmi.bmiHeader.biPlanes    = 1;
-            w->bmi.bmiHeader.biBitCount  = 32;
-            w->bmi.bmiHeader.biCompression = BI_RGB;
+            ZeroMemory(&w->bmi,sizeof(BITMAPINFO_RGBA));
+            w->bmi.header.biSize      = sizeof(BITMAPINFOHEADER);
+            w->bmi.header.biWidth     = w->Width;
+            w->bmi.header.biHeight    = -w->Height;
+            w->bmi.header.biPlanes    = 1;
+            w->bmi.header.biBitCount  = 32;
+            w->bmi.header.biCompression = BI_BITFIELDS;
+
+            w->bmi.masks[0] = 0x00FF0000; // Red
+            w->bmi.masks[1] = 0x0000FF00; // Green
+            w->bmi.masks[2] = 0x000000FF; // Blue
+            w->bmi.masks[3] = 0xFF000000; // Alpha
 
             if (w->resize)
                 w->resize(w);
@@ -332,13 +396,18 @@ void AlxWindow_Init(
         w
     );
 
-    ZeroMemory(&w->bmi, sizeof(BITMAPINFO));
-    w->bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    w->bmi.bmiHeader.biWidth = w->Width;
-    w->bmi.bmiHeader.biHeight = -w->Height; // negative Höhe bedeutet, dass das Bitmap "oben nach unten" gespeichert wird
-    w->bmi.bmiHeader.biPlanes = 1;
-    w->bmi.bmiHeader.biBitCount = 32;
-    w->bmi.bmiHeader.biCompression = BI_RGB;
+    ZeroMemory(&w->bmi,sizeof(BITMAPINFO_RGBA));
+    w->bmi.header.biSize      = sizeof(BITMAPINFOHEADER);
+    w->bmi.header.biWidth     = w->Width;
+    w->bmi.header.biHeight    = -w->Height;
+    w->bmi.header.biPlanes    = 1;
+    w->bmi.header.biBitCount  = 32;
+    w->bmi.header.biCompression = BI_BITFIELDS;
+
+    w->bmi.masks[0] = 0x00FF0000; // Red
+    w->bmi.masks[1] = 0x0000FF00; // Green
+    w->bmi.masks[2] = 0x000000FF; // Blue
+    w->bmi.masks[3] = 0xFF000000; // Alpha
 
     //HICON hIconSmall = LoadIcon(
     //    GetModuleHandle(NULL),
@@ -409,11 +478,16 @@ void AlxWindow_GameUpdate(AlxWindow* w){
     if(w->ElapsedTime != 0.0)
         Fps /= w->ElapsedTime;
 
+    w->MouseBeforeX = w->MouseX;
+    w->MouseBeforeY = w->MouseY;
     AlxWindow_UpdateKB(w);
 
     char Buffer[100];
     sprintf(Buffer,"Alx - %s - %4.1f",w->Name,Fps);
     SetWindowText(w->hwnd,Buffer);
+
+	if (w->Strokes[ALX_KEY_F11].PRESSED)
+	    AlxWindow_SetFullscreen(w);
 }
 void AlxWindow_GameLoop(AlxWindow* w,void (*Render)(AlxWindow*)){
     timeBeginPeriod(1);

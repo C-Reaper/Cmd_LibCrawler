@@ -125,6 +125,52 @@ void Memcpy_i64(unsigned long long *Src, unsigned long long *Dst, size_t num) {
         Dst[i] = Src[i];
     }
 }
+
+void Memset_f32(float *Ptr, float Value, size_t num) {
+    __m256 vec = _mm256_set1_ps(Value);
+    
+    size_t i = 0;
+    for (; i + 8 <= num; i += 8) {
+        _mm256_storeu_ps((float *)(Ptr + i), vec);
+    }
+
+    for (; i < num; ++i) {
+        Ptr[i] = Value;
+    }
+}
+void Memcpy_f32(float *Src, float *Dst, size_t num) {
+    size_t i = 0;
+    for (; i + 8 <= num; i += 8) {
+        _mm256_storeu_ps((float *)(Dst + i), _mm256_load_ps((float *)(Src + i)));
+    }
+
+    for (; i < num; ++i) {
+        Dst[i] = Src[i];
+    }
+}
+void Memset_f64(double *Ptr, double Value, size_t num) {
+    __m256d vec = _mm256_set1_pd(Value);
+    
+    size_t i = 0;
+    for (; i + 8 <= num; i += 8) {
+        _mm256_storeu_pd((double *)(Ptr + i), vec);
+    }
+
+    for (; i < num; ++i) {
+        Ptr[i] = Value;
+    }
+}
+void Memcpy_f64(double *Src, double *Dst, size_t num) {
+    size_t i = 0;
+    for (; i + 8 <= num; i += 8) {
+        _mm256_storeu_pd((double *)(Dst + i), _mm256_load_pd((double *)(Src + i)));
+    }
+
+    for (; i < num; ++i) {
+        Dst[i] = Src[i];
+    }
+}
+
 void Memset_Alpha(unsigned int* Dst,const unsigned int Set, size_t num_pixels) {
     size_t i = 0;
     for (; i + 8 <= num_pixels; i += 8) {
@@ -393,6 +439,41 @@ void Memexpand(unsigned int *Src,unsigned int *Dst,int SrcSize,int DstSize) {
         Dst[i] = Src[(int)((float)i * a)];
     }
 }
+void Memexpand_G_By_f32(float *Src,unsigned int *Dst,int SrcSize,int DstSize) {
+    if(SrcSize==DstSize){
+        for (int i = 0; i < DstSize; ++i) {
+            const float v = Src[i];
+            const unsigned char cv = (unsigned char)(v * 255.0f);
+            Dst[i] = cv | (cv << 8U) | (cv << 16U) | (255U << 24U);
+        }
+    }
+    
+    float a = (float)SrcSize / (float)DstSize;
+    int i = 0;
+
+    /*
+    __m256 scale = _mm256_set1_ps(a);
+
+    for (; i + 8 <= DstSize; i += 8) {
+        __m256 idx_f = _mm256_set_ps(
+            (float)(i + 7), (float)(i + 6), (float)(i + 5), (float)(i + 4),
+            (float)(i + 3), (float)(i + 2), (float)(i + 1), (float)(i + 0)
+        );
+
+        __m256 scaled = _mm256_mul_ps(idx_f, scale);
+        __m256i src_indices = _mm256_cvttps_epi32(scaled);
+        __m256i result = _mm256_i32gather_epi32((const int*)Src, src_indices, sizeof(unsigned int));
+        _mm256_storeu_si256((__m256i*)(Dst + i), result);
+    }
+    */
+
+    for (; i < DstSize; ++i) {
+        const float v = Src[(int)((float)i * a)];
+        const unsigned char cv = (unsigned char)(v * 255.0f);
+        Dst[i] = cv | (cv << 8U) | (cv << 16U) | (255U << 24U);
+    }
+}
+
 void Memexpand_IntShift(unsigned int *Src,unsigned int *Dst,int DstSize,int Shift) {
     size_t i = 0;
 

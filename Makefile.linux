@@ -4,7 +4,7 @@ CC = gcc
 WARNINGS = -Werror
 CFLAGS = -O0 -mavx2 -std=gnu17 $(WARNINGS)
 INCLUDES = -Isrc
-LDFLAGS = -lm -lX11 -lpng -ljpeg
+LDFLAGS = -lm
 SRC_DIR = src
 BUILD_DIR = build
 TARGET = $(BUILD_DIR)/Main
@@ -27,7 +27,7 @@ debug:
 	gdb ./$(TARGET)
 
 exe:
-	./$(TARGET)
+	./$(TARGET) ./inc ./src
 
 clean:
 	rm -rf $(BUILD_DIR)/*

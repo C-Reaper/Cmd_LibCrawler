@@ -1,12 +1,56 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
-#if defined __linux__
-
-#include "Files.h"
-
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "../Container/DataStream.h"
+#include "Files.h"
+#include "Pixel.h"
+#include "Intrinsics.h"
+
+void Image_FlipV(unsigned int* buffer,int width,int height){
+    const unsigned int size = sizeof(unsigned int) * width;
+    unsigned int* sbuffer = (unsigned int*)malloc(size);
+    
+    for (int y = 0; y < height / 2; y++) {
+        const unsigned int dsti = y * width;
+        const unsigned int srci = (height - 1 - y) * width;
+        memcpy(sbuffer,buffer + dsti,width * sizeof(unsigned int));
+		memcpy(buffer + dsti,buffer + srci,width * sizeof(unsigned int));
+		memcpy(buffer + srci,sbuffer,width * sizeof(unsigned int));
+	}
+
+    if(sbuffer) free(sbuffer);
+}
+void Image_FlipH(unsigned int* buffer,int width,int height){
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width / 2; x++) {
+            const int sx = width - 1 - x;
+            const unsigned int sc = buffer[y * width + x];
+            buffer[y * width + x] = buffer[y * width + sx];
+            buffer[y * width + sx] = sc;
+		}
+	}
+}
+void Image_Swap_RB(unsigned int* buffer,int width,int height){
+    //Color* cbuffer = (Color*)buffer;
+    //for (int y = 0; y < height; y++) {
+	//	for (int x = 0; x < width; x++) {
+    //        const Color p = cbuffer[y * width + x];
+	//		cbuffer[y * width + x].a = p.a;
+	//		cbuffer[y * width + x].r = p.b;
+	//		cbuffer[y * width + x].g = p.g;
+	//		cbuffer[y * width + x].b = p.r;
+	//	}
+	//}
+    Memswap_i32(buffer,0,2,width * height);
+}
+
+#define IMAGE_STD
+#if defined IMAGE_STD 
+#if defined __linux__
+
 #include <png.h>
 #include <jpeglib.h>
 //#include <zlib.h>
@@ -26,18 +70,18 @@ void Png_Read(png_structp png_ptr, png_bytep out_bytes, png_size_t byte_count) {
     memcpy(out_bytes, reader->data + reader->offset, byte_count);
     reader->offset += byte_count;
 }
-int Png_SaveARGB(const char* filename,unsigned int* buffer,int width,int height) {
+char Png_SaveARGB(const char* filename,unsigned int* buffer,int width,int height) {
     FILE *fp = fopen(filename, "wb");
     if (!fp) {
         printf("[Png]: SaveARGB -> Error fopen: %s\n",filename);
-        return -1;
+        return 0;
     }
 
     png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
     if (!png) {
         printf("[Png]: SaveARGB -> Error write: %s\n",filename);
         fclose(fp);
-        return -1;
+        return 0;
     }
 
     png_infop info = png_create_info_struct(png);
@@ -45,16 +89,17 @@ int Png_SaveARGB(const char* filename,unsigned int* buffer,int width,int height)
         printf("[Png]: SaveARGB -> Error info_struct: %s\n",filename);
         png_destroy_write_struct(&png, NULL);
         fclose(fp);
-        return -1;
+        return 0;
     }
 
     if (setjmp(png_jmpbuf(png))) {
         printf("[Png]: SaveARGB -> Error jmpbuf: %s\n",filename);
         png_destroy_write_struct(&png, &info);
         fclose(fp);
-        return -1;
+        return 0;
     }
 
+    png_set_bgr(png);
     png_set_compression_level(png,9);
     png_init_io(png, fp);
     
@@ -73,7 +118,7 @@ int Png_SaveARGB(const char* filename,unsigned int* buffer,int width,int height)
     free(rows);
     png_destroy_write_struct(&png, &info);
     fclose(fp);
-    return 0;
+    return 1;
 }
 unsigned int* Png_toARGB(const unsigned char* png_data, size_t png_size, int* width, int* height) {
     png_image image;
@@ -318,7 +363,7 @@ unsigned int* Png_LoadToARGB_F(const char* filename, int* width, int* height) {
     return argb_buffer;
 }
 
-int Jpeg_SaveARGB(const char* filename,const unsigned int* argb_buffer,int width,int height,int quality){
+char Jpeg_SaveARGB(const char* filename,const unsigned int* argb_buffer,int width,int height,int quality){
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
 
@@ -471,6 +516,330 @@ unsigned int* Jpeg_LoadToARGB_F(const char* filename,int* width,int* height) {
 
     return result;
 }
+#elif defined _WIN32
+
+#include <windows.h>
+#include <objbase.h>
+#include <wincodec.h>
+// #pragma comment(lib, "ole32.lib")
+// #pragma comment(lib, "windowscodecs.lib")
+
+static BOOL GuidEqual(REFGUID a, REFGUID b) {
+    return memcmp(a, b, sizeof(GUID)) == 0;
+}
+
+unsigned int* Jpeg_LoadToARGB(const unsigned char* jpeg_data, size_t jpeg_size, int* width, int* height) {
+    if (!jpeg_data || jpeg_size == 0 || !width || !height) return NULL;
+
+    IWICImagingFactory* factory = NULL;
+    IWICBitmapDecoder* decoder = NULL;
+    IWICBitmapFrameDecode* frame = NULL;
+    IWICFormatConverter* converter = NULL;
+    IWICStream* wicStream = NULL;
+    unsigned int* argb = NULL;
+
+    HRESULT hr = CoCreateInstance(&CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER,
+                                  &IID_IWICImagingFactory, (void**)&factory);
+    if (FAILED(hr)) return NULL;
+
+    hr = factory->lpVtbl->CreateStream(factory, &wicStream);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = wicStream->lpVtbl->InitializeFromMemory(wicStream, (BYTE*)jpeg_data, (DWORD)jpeg_size);
+    if (FAILED(hr)) goto cleanup;
+
+    // Cast zu IStream* (erforderlich bei mingw)
+    hr = factory->lpVtbl->CreateDecoderFromStream(factory, (IStream*)wicStream, NULL,
+        WICDecodeMetadataCacheOnDemand, &decoder);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = decoder->lpVtbl->GetFrame(decoder, 0, &frame);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = factory->lpVtbl->CreateFormatConverter(factory, &converter);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = converter->lpVtbl->Initialize(converter, (IWICBitmapSource*)frame,
+        &GUID_WICPixelFormat32bppBGRA, WICBitmapDitherTypeNone, NULL, 0.0f, WICBitmapPaletteTypeMedianCut);
+    if (FAILED(hr)) goto cleanup;
+
+    UINT w, h;
+    converter->lpVtbl->GetSize(converter, &w, &h);
+    *width = (int)w;
+    *height = (int)h;
+
+    argb = (unsigned int*)malloc(w * h * sizeof(unsigned int));
+    if (!argb) goto cleanup;
+
+    hr = converter->lpVtbl->CopyPixels(converter, NULL, w * 4, w * h * 4, (BYTE*)argb);
+    if (FAILED(hr)) {
+        free(argb);
+        argb = NULL;
+        goto cleanup;
+    }
+
+    // BGRA → ARGB
+    for (UINT i = 0; i < w * h; i++) {
+        unsigned int p = argb[i];
+        argb[i] = (p & 0xFF00FF00) | ((p & 0xFF) << 16) | ((p >> 16) & 0xFF);
+    }
+
+cleanup:
+    if (wicStream) wicStream->lpVtbl->Release(wicStream);
+    if (converter) converter->lpVtbl->Release(converter);
+    if (frame) frame->lpVtbl->Release(frame);
+    if (decoder) decoder->lpVtbl->Release(decoder);
+    if (factory) factory->lpVtbl->Release(factory);
+    return argb;
+}
+unsigned int* Jpeg_LoadToARGB_F(const char* filename, int* width, int* height) {
+    if (!filename) return NULL;
+    FILE* f = fopen(filename, "rb");
+    if (!f) return NULL;
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    rewind(f);
+    if (size <= 0) { fclose(f); return NULL; }
+
+    unsigned char* data = (unsigned char*)malloc(size);
+    if (!data) { fclose(f); return NULL; }
+    fread(data, 1, size, f);
+    fclose(f);
+
+    unsigned int* result = Jpeg_LoadToARGB(data, size, width, height);
+    free(data);
+    return result;
+}
+
+unsigned int* Png_LoadToARGB(const unsigned char* png_data, size_t png_size, int* width, int* height) {
+    if (!png_data || png_size == 0 || !width || !height) return NULL;
+
+    IWICImagingFactory* factory = NULL;
+    IWICBitmapDecoder* decoder = NULL;
+    IWICBitmapFrameDecode* frame = NULL;
+    IWICFormatConverter* converter = NULL;
+    IWICStream* wicStream = NULL;
+    unsigned int* argb = NULL;
+
+    HRESULT hr = CoCreateInstance(&CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER,
+                                  &IID_IWICImagingFactory, (void**)&factory);
+    if (FAILED(hr)) return NULL;
+
+    hr = factory->lpVtbl->CreateStream(factory, &wicStream);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = wicStream->lpVtbl->InitializeFromMemory(wicStream, (BYTE*)png_data, (DWORD)png_size);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = factory->lpVtbl->CreateDecoderFromStream(factory, (IStream*)wicStream, NULL,
+        WICDecodeMetadataCacheOnDemand, &decoder);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = decoder->lpVtbl->GetFrame(decoder, 0, &frame);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = factory->lpVtbl->CreateFormatConverter(factory, &converter);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = converter->lpVtbl->Initialize(converter, (IWICBitmapSource*)frame,
+        &GUID_WICPixelFormat32bppBGRA, WICBitmapDitherTypeNone, NULL, 0.0f, WICBitmapPaletteTypeMedianCut);
+    if (FAILED(hr)) goto cleanup;
+
+    UINT w, h;
+    converter->lpVtbl->GetSize(converter, &w, &h);
+    *width = (int)w;
+    *height = (int)h;
+
+    argb = (unsigned int*)malloc(w * h * sizeof(unsigned int));
+    if (!argb) goto cleanup;
+
+    hr = converter->lpVtbl->CopyPixels(converter, NULL, w * 4, w * h * 4, (BYTE*)argb);
+    if (FAILED(hr)) {
+        free(argb);
+        argb = NULL;
+        goto cleanup;
+    }
+
+    // BGRA → ARGB
+    for (UINT i = 0; i < w * h; i++) {
+        unsigned int p = argb[i];
+        argb[i] = (p & 0xFF00FF00) | ((p & 0xFF) << 16) | ((p >> 16) & 0xFF);
+    }
+
+cleanup:
+    if (wicStream) wicStream->lpVtbl->Release(wicStream);
+    if (converter) converter->lpVtbl->Release(converter);
+    if (frame) frame->lpVtbl->Release(frame);
+    if (decoder) decoder->lpVtbl->Release(decoder);
+    if (factory) factory->lpVtbl->Release(factory);
+    return argb;
+}
+unsigned int* Png_LoadToARGB_F(const char* filename, int* width, int* height) {
+    if (!filename) return NULL;
+    FILE* f = fopen(filename, "rb");
+    if (!f) return NULL;
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    rewind(f);
+    if (size <= 0) { fclose(f); return NULL; }
+
+    unsigned char* data = (unsigned char*)malloc(size);
+    if (!data) { fclose(f); return NULL; }
+    fread(data, 1, size, f);
+    fclose(f);
+
+    unsigned int* result = Png_LoadToARGB(data, size, width, height);
+    free(data);
+    return result;
+}
+
+static HRESULT WIC_SaveImage(const unsigned int* argb_buffer, int width, int height,REFGUID containerFormat, const char* filename, int quality) {
+    if (!argb_buffer || width <= 0 || height <= 0 || !filename) return E_INVALIDARG;
+
+    IWICImagingFactory* factory = NULL;
+    IWICBitmapEncoder* encoder = NULL;
+    IWICBitmapFrameEncode* frame = NULL;
+    IWICStream* wicStream = NULL;
+    IPropertyBag2* props = NULL;
+    unsigned int* bgra = NULL;
+
+    HRESULT hr = CoCreateInstance(&CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER,
+                                  &IID_IWICImagingFactory, (void**)&factory);
+    if (FAILED(hr)) return hr;
+
+    hr = factory->lpVtbl->CreateStream(factory, &wicStream);
+    if (FAILED(hr)) goto cleanup;
+
+    wchar_t wfilename[MAX_PATH] = {0};
+    MultiByteToWideChar(CP_UTF8, 0, filename, -1, wfilename, MAX_PATH);
+
+    hr = wicStream->lpVtbl->InitializeFromFilename(wicStream, wfilename, GENERIC_WRITE);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = factory->lpVtbl->CreateEncoder(factory, containerFormat, NULL, &encoder);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = encoder->lpVtbl->Initialize(encoder, (IStream*)wicStream, WICBitmapEncoderNoCache);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = encoder->lpVtbl->CreateNewFrame(encoder, &frame, &props);
+    if (FAILED(hr)) goto cleanup;
+
+    if (props && GuidEqual(containerFormat, &GUID_ContainerFormatJpeg)) {
+        PROPBAG2 option = {0};
+        option.pstrName = (LPOLESTR)L"Quality";
+        VARIANT var;
+        VariantInit(&var);
+        var.vt = VT_UI4;
+        var.ulVal = (UINT)quality;
+        props->lpVtbl->Write(props, 1, &option, &var);
+    }
+
+    hr = frame->lpVtbl->Initialize(frame, props);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = frame->lpVtbl->SetSize(frame, (UINT)width, (UINT)height);
+    if (FAILED(hr)) goto cleanup;
+
+    GUID pixelFormat = GUID_WICPixelFormat32bppBGRA;
+    hr = frame->lpVtbl->SetPixelFormat(frame, &pixelFormat);
+    if (FAILED(hr)) goto cleanup;
+
+    bgra = (unsigned int*)malloc((size_t)width * height * sizeof(unsigned int));
+    if (!bgra) { hr = E_OUTOFMEMORY; goto cleanup; }
+
+    for (int i = 0; i < width * height; i++) {
+        unsigned int p = argb_buffer[i];
+        bgra[i] = (p & 0xFF00FF00) | ((p & 0x00FF0000) >> 16) | ((p & 0x000000FF) << 16);
+    }
+
+    hr = frame->lpVtbl->WritePixels(frame, (UINT)height, (UINT)width * 4, (UINT)width * height * 4, (BYTE*)bgra);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = frame->lpVtbl->Commit(frame);
+    if (FAILED(hr)) goto cleanup;
+
+    hr = encoder->lpVtbl->Commit(encoder);
+
+cleanup:
+    if (bgra) free(bgra);
+    if (props) props->lpVtbl->Release(props);
+    if (frame) frame->lpVtbl->Release(frame);
+    if (encoder) encoder->lpVtbl->Release(encoder);
+    if (wicStream) wicStream->lpVtbl->Release(wicStream);
+    if (factory) factory->lpVtbl->Release(factory);
+    return hr;
+}
+
+char Jpeg_SaveARGB(const char* filename, const unsigned int* argb_buffer, int width, int height, int quality) {
+    if (!filename || !argb_buffer || width <= 0 || height <= 0) return 0;
+
+    HRESULT hr = WIC_SaveImage(argb_buffer, width, height, &GUID_ContainerFormatJpeg, filename, quality);
+    if (SUCCEEDED(hr)) {
+        printf("[Jpeg]: Saved \"%s\" (%dx%d, Quality %d)\n", filename, width, height, quality);
+        return 1;
+    }
+    printf("[Jpeg]: Save failed \"%s\" (0x%08X)\n", filename, hr);
+    return 0;
+}
+char Png_SaveARGB(const char* filename, unsigned int* buffer, int width, int height) {
+    if (!filename || !buffer || width <= 0 || height <= 0) return 0;
+
+    HRESULT hr = WIC_SaveImage(buffer, width, height, &GUID_ContainerFormatPng, filename, 100);
+    if (SUCCEEDED(hr)) {
+        printf("[Png]: Saved \"%s\" (%dx%d)\n", filename, width, height);
+        return 1;
+    }
+    printf("[Png]: Save failed \"%s\" (0x%08X)\n", filename, hr);
+    return 0;
+}
+
+#elif defined _WEB
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "Stb_Image.h"
+
+void Png_Read(void* png_ptr, size_t out_bytes, size_t byte_count) {
+    printf("[Png]: Read -> Function not defined!\n");
+}
+char Png_SaveARGB(const char* filename,unsigned int* buffer,int width,int height) {
+    printf("[Png]: SaveARGB -> Function not defined!\n");
+    return 0;
+}
+unsigned int* Png_toARGB(const unsigned char* png_data, size_t png_size, int* width, int* height) {
+    printf("[Png]: toARGB -> Function not defined!\n");
+    return NULL;
+}
+unsigned int* Png_LoadToARGB(const unsigned char* png_data, size_t png_size, int* width, int* height) {
+    printf("[Png]: LoadToARGB -> Function not defined!\n");
+    return NULL;
+}
+unsigned int* Png_LoadToARGB_F(const char* filename, int* width, int* height) {
+    int channels;
+    unsigned char* data = stbi_load(filename,width,height,&channels,4);
+    return (unsigned int*)data;
+}
+
+char Jpeg_SaveARGB(const char* filename,const unsigned int* argb_buffer,int width,int height,int quality){
+    printf("[Jpeg]: SaveARGB -> Function not defined!\n");
+    return 0;
+}
+unsigned char* Jpeg_ByARGB(const unsigned int* argb_buffer,int width,int height,int quality,unsigned long* jpeg_size){
+    printf("[Jpeg]: ByARGB -> Function not defined!\n");
+    return NULL;
+}
+unsigned int* Jpeg_LoadToARGB(unsigned char* jpeg_data,size_t jpeg_size,int* width,int* height) {
+    printf("[Jpeg]: LoadToARGB -> Function not defined!\n");
+    return NULL;
+}
+unsigned int* Jpeg_LoadToARGB_F(const char* filename,int* width,int* height) {
+    int channels;
+    unsigned char* data = stbi_load(filename,width,height,&channels,4);
+    return (unsigned int*)data;
+}
+
+#endif
+
 void ARGB_toYUYV(unsigned int* buffer,int width,int height,unsigned char* out,int length) {
     int yuyv_index = 0;
     for (int y = 0; y < height; y++) {
@@ -529,14 +898,106 @@ void ARGB_toYUYV(unsigned int* buffer,int width,int height,unsigned char* out,in
     //     out[i * 2 + 3] = v;
     // }
 }
+char Bmp_SaveARGB(const char* filename,unsigned int* buffer,int width,int height) {
+    //if(!Files_isFile((char*)filename)) return 0;
+    DataStream ds = DataStream_New();
+    
+    //unsigned char bmpPad[3] = { 0,0,0 };
+	const int fileHeaderSize = 14;
+	const int informationHeaderSize = 40;
+	const int fileSize = fileHeaderSize + informationHeaderSize + width * height * sizeof(unsigned int);
+	
+    DataStream_PushCount(&ds,"BM",2);
+    DataStream_PushCount(&ds,(int[]){ fileSize },sizeof(int));
+    DataStream_PushCount(&ds,(int[]){ 0 },sizeof(int));
+    DataStream_PushCount(&ds,(int[]){ fileHeaderSize + informationHeaderSize },sizeof(int));
 
-#endif
+    DataStream_PushCount(&ds,(int[]){ informationHeaderSize },sizeof(int));
+    DataStream_PushCount(&ds,&width,sizeof(int));
+    DataStream_PushCount(&ds,&height,sizeof(int));
+    DataStream_PushCount(&ds,(int[]){ 0x00200001 },sizeof(int));
+    DataStream_PushCount(&ds,(int[]){ 0 },sizeof(int));
+    DataStream_PushCount(&ds,(int[]){ 0 },sizeof(int));
+    DataStream_PushCount(&ds,(int[]){ 0 },sizeof(int));
+    DataStream_PushCount(&ds,(int[]){ 0 },sizeof(int));
+    DataStream_PushCount(&ds,(int[]){ 0 },sizeof(int));
+    DataStream_PushCount(&ds,(int[]){ 0 },sizeof(int));
+	
+    for (int y = height - 1; y >= 0; y--) {
+        const unsigned int dsti = y * width;
+        DataStream_PushCount(&ds,buffer + dsti,sizeof(unsigned int) * width);
+	}
 
-#if defined IMAGE_PNGJPEG
+    Files_Write((char*)filename,ds.Memory,ds.size);
+    DataStream_Free(&ds);
+    return 1;
+}
+unsigned int* Bmp_LoadToARGB_F(const char* filename, int* width, int* height) {
+    FilesSize fsize;
+    char* data = Files_ReadTB((char*)filename,&fsize);
+    if (!data) {
+        printf("[Bmp]: LoadToARGB_F -> Error fopen: %s\n",filename);
+        return NULL;
+    }
+    DataStream ds = DataStream_By(data,fsize);
+    const int size_b = ds.size;
+    
+    char fileHeader[2];
+    DataStream_ReadCount(&ds,fileHeader,0,2);
+	
+    if (fileHeader[0] != 'B' || fileHeader[1] != 'M') {
+		printf("[Bmp]: LoadToARGB_F -> Path '%s' is not a bitmap image!\n",filename);
+		return NULL;
+	}
+    
+    int fileSize;
+    int fileHISize;
+    DataStream_ReadCount(&ds,&fileSize,0,sizeof(int));
+    DataStream_ReadCount(&ds,(int[]){ 0 },0,sizeof(int));
+    DataStream_ReadCount(&ds,&fileHISize,0,sizeof(int));
+    
+	int informationHeaderSize; //40 + 20 + 16 * 4
+    DataStream_ReadCount(&ds,&informationHeaderSize,0,sizeof(int));
+    DataStream_ReadCount(&ds,width,0,sizeof(int));
+    DataStream_ReadCount(&ds,height,0,sizeof(int));
 
-#define IMAGE_FLIP_NONE     0
-#define IMAGE_FLIP_V        1
-#define IMAGE_FLIP_H        2
+    int fileBits;
+    DataStream_ReadCount(&ds,&fileBits,0,sizeof(int));
+    fileBits >>= 16;
+
+    const int size_r = fileHISize - (size_b - ds.size);
+    DataStream_RemoveCount(&ds,0,size_r);
+
+    const unsigned int size = sizeof(unsigned int) * *width * *height;
+    unsigned int* argb_buffer = (unsigned int*)malloc(size);
+    //const int paddingAmount = ((4 - (*width * 3) % 4) % 4);
+    
+    if(fileBits == 0x20){ // 32
+        DataStream_ReadCount(&ds,argb_buffer,0,size);
+    }else if(fileBits == 0x18){ // 24
+        unsigned char* ds_m = (unsigned char*)ds.Memory;
+        
+        for (int y = 0; y < *height; y++) {
+            for (int x = 0; x < *width; x++) {
+                unsigned int p = 0x0U;
+                p |= ds_m[0];
+                p |= ds_m[1] << 8;
+                p |= ds_m[2] << 16;
+                argb_buffer[y * *width + x] = p;
+                ds_m += sizeof(unsigned char) * 3;
+		    }
+	    }
+    }else{
+        memset(argb_buffer,0,size);
+    }
+
+    DataStream_Free(&ds);
+    return argb_buffer;
+}
+
+#define IMAGE_FLIP_NONE     0b0
+#define IMAGE_FLIP_V        0b1
+#define IMAGE_FLIP_H        0b10
 
 char Image_FlipState = 0;
 
@@ -553,64 +1014,62 @@ void Image_Disable_FlipH(){
     Image_FlipState &= ~IMAGE_FLIP_H;
 }
 
-int Image_Save(char* filename,unsigned int* buffer,int width,int height) {
+char Image_Save(char* filename,unsigned int* buffer,int width,int height) {
     CStr type = Files_Type(filename);
+    if(!type) return 0;
     
-    if(CStr_Cmp(type,".png") || CStr_Cmp(type,".PNG")){
-        Png_SaveARGB(filename,buffer,width,height);
-    }else if(CStr_Cmp(type,".jpg") || CStr_Cmp(type,".jpeg") || CStr_Cmp(type,".JPG") || CStr_Cmp(type,".JPEG")){
-        Jpeg_SaveARGB(filename,buffer,width,height,85);
+    if(CStr_Cmp(type,"png") || CStr_Cmp(type,"PNG")){
+        CStr_Free(&type);
+        return Png_SaveARGB(filename,buffer,width,height);
+    }else if(CStr_Cmp(type,"jpg") || CStr_Cmp(type,"jpeg") || CStr_Cmp(type,"JPG") || CStr_Cmp(type,"JPEG")){
+        CStr_Free(&type);
+        return Jpeg_SaveARGB(filename,buffer,width,height,85);
+    }else if(CStr_Cmp(type,"bmp") || CStr_Cmp(type,"BMP")){
+        CStr_Free(&type);
+        return Bmp_SaveARGB(filename,buffer,width,height);
     }else{
         printf("[Image]: Save -> Error format not valid: %s (%s)\n",type,filename);
+        CStr_Free(&type);
+        return 0;
     }
-
-    CStr_Free(&type);
-    return 0;
 }
 unsigned int* Image_Load(char* filename,int* width,int* height) {
     CStr type = Files_Type(filename);
-    
-    if(CStr_Cmp(type,".png") || CStr_Cmp(type,".PNG")){
+    if(!type) return 0;
+
+    if(CStr_Cmp(type,"png") || CStr_Cmp(type,"PNG")){
         CStr_Free(&type);
         unsigned int* buffer = Png_LoadToARGB_F(filename,width,height);
         
         if(Image_FlipState & IMAGE_FLIP_V){
-            for(int i = 0;i<*height;i++){
-                for(int j = 0;j<*width;j++){
-                    const int swap_j = (*width - 1) - j;
-                    buffer[i * *width + j] = buffer[i * *width + swap_j];
-                }
-            }
+            Image_FlipV(buffer,*width,*height);
         }
         if(Image_FlipState & IMAGE_FLIP_H){
-            for(int i = 0;i<*height;i++){
-                const int swap_i = (*height - 1) - i;
-                for(int j = 0;j<*width;j++){
-                    buffer[i * *width + j] = buffer[swap_i * *width + j];
-                }
-            }
+            Image_FlipH(buffer,*width,*height);
         }
 
         return buffer;
-    }else if(CStr_Cmp(type,".jpg") || CStr_Cmp(type,".jpeg") || CStr_Cmp(type,".JPG") || CStr_Cmp(type,".JPEG")){
+    }else if(CStr_Cmp(type,"jpg") || CStr_Cmp(type,"jpeg") || CStr_Cmp(type,"JPG") || CStr_Cmp(type,"JPEG")){
         CStr_Free(&type);
         unsigned int* buffer = Jpeg_LoadToARGB_F(filename,width,height);
 
         if(Image_FlipState & IMAGE_FLIP_V){
-            for(int i = 0;i<*height;i++){
-                for(int j = 0;j<*width;j++){
-                    const int swap_j = (*width - 1) - j;
-                    buffer[i * *width + j] = buffer[i * *width + swap_j];
-                }
-            }
+            Image_FlipV(buffer,*width,*height);
         }
         if(Image_FlipState & IMAGE_FLIP_H){
-            for(int i = 0;i<*height;i++){
-                const int swap_i = (*height - 1) - i;
-                for(int j = 0;j<*width;j++){
-                    buffer[i * *width + j] = buffer[swap_i * *width + j];
-                }
-            }
+            Image_FlipH(buffer,*width,*height);
+        }
+        
+        return buffer;
+    }else if(CStr_Cmp(type,"bmp") || CStr_Cmp(type,"BMP")){
+        CStr_Free(&type);
+        unsigned int* buffer = Bmp_LoadToARGB_F(filename,width,height);
+
+        if(!(Image_FlipState & IMAGE_FLIP_V)){
+            Image_FlipV(buffer,*width,*height);
+        }
+        if(Image_FlipState & IMAGE_FLIP_H){
+            Image_FlipH(buffer,*width,*height);
         }
 
         return buffer;

@@ -41,4 +41,13 @@ void Ray_RenderX(unsigned int* Target,int Target_Width,int Target_Height,float m
     Ray_Render(Target,Target_Width,Target_Height,r,c,StrokeSize);
 }
 
+void Ray_DirRender(unsigned int* Target,int Target_Width,int Target_Height,Vec2 p,float len,float a,unsigned int c,F32 StrokeSize){
+	// l = (ux * m - px * m + py - uy) / (vy - vx * m)
+    
+    const Vec2 v = Vec2_OfAngle(a);
+    const float tx = p.x + v.x * len;
+    const float ty = p.y + v.y * len;
+    Line_RenderX(Target,Target_Width,Target_Height,p,(Vec2){ tx,ty },c,StrokeSize);
+}
+
 #endif // !RAY_H

@@ -69,69 +69,67 @@ Vec4 Vec4_OfAngle(float a){
 }
 
 M4x4 M4x4_Null(){
-    M4x4 mat = { 
-        0.0f,0.0f,0.0f,0.0f, 
-        0.0f,0.0f,0.0f,0.0f, 
-        0.0f,0.0f,0.0f,0.0f, 
-        0.0f,0.0f,0.0f,0.0f 
-    };
+    M4x4 mat = {{
+        { 0.0f,0.0f,0.0f,0.0f }, 
+        { 0.0f,0.0f,0.0f,0.0f }, 
+        { 0.0f,0.0f,0.0f,0.0f }, 
+        { 0.0f,0.0f,0.0f,0.0f } 
+    }};
     return mat;
 }
 M4x4 M4x4_Identity(){
-    M4x4 mat = { 
-        1.0f,       0.0f,       0.0f,       0.0f, 
-        0.0f,       1.0f,       0.0f,       0.0f, 
-        0.0f,       0.0f,       1.0f,       0.0f,
-        0.0f,       0.0f,       0.0f,       1.0f
-    };
+    M4x4 mat = {{ 
+        { 1.0f,       0.0f,       0.0f,       0.0f }, 
+        { 0.0f,       1.0f,       0.0f,       0.0f }, 
+        { 0.0f,       0.0f,       1.0f,       0.0f },
+        { 0.0f,       0.0f,       0.0f,       1.0f }
+    }};
     return mat;
 }
 M4x4 M4x4_RotateX(float a){
-    M4x4 mat = { 
-        1.0f,       0.0f,       0.0f,       0.0f,
-        0.0f,       cosf(a),    -sinf(a),   0.0f,
-        0.0f,       sinf(a),    cosf(a),    0.0f,
-        0.0f,       0.0f,       0.0f,       0.0f
-    };
+    M4x4 mat = {{ 
+        { 1.0f,       0.0f,       0.0f,       0.0f },
+        { 0.0f,       cosf(a),    -sinf(a),   0.0f },
+        { 0.0f,       sinf(a),    cosf(a),    0.0f },
+        { 0.0f,       0.0f,       0.0f,       0.0f }
+    }};
     return mat;
 }
 M4x4 M4x4_RotateY(float a){
-    M4x4 mat = { 
-        cosf(a),       0.0f,        sinf(a),    0.0f,
-        0.0f,          1.0f,        0.0f,       0.0f,
-        -sinf(a),      0.0f,        cosf(a),    0.0f,
-        0.0f,          0.0f,        0.0f,       0.0f
-    };
+    M4x4 mat = {{ 
+        { cosf(a),       0.0f,        sinf(a),    0.0f },
+        { 0.0f,          1.0f,        0.0f,       0.0f },
+        { -sinf(a),      0.0f,        cosf(a),    0.0f },
+        { 0.0f,          0.0f,        0.0f,       0.0f }
+    }};
     return mat;
 }
 M4x4 M4x4_RotateZ(float a){
-    M4x4 mat = { 
-        cosf(a),        -sinf(a),       0.0f,       0.0f,
-        sinf(a),        cosf(a),        0.0f,       0.0f,
-        0.0f,           0.0f,           1.0f,       0.0f,
-        0.0f,           0.0f,           0.0f,       0.0f
-    };
+    M4x4 mat = {{ 
+        { cosf(a),        -sinf(a),       0.0f,       0.0f },
+        { sinf(a),        cosf(a),        0.0f,       0.0f },
+        { 0.0f,           0.0f,           1.0f,       0.0f },
+        { 0.0f,           0.0f,           0.0f,       0.0f }
+    }};
     return mat;
 }
-M4x4 M4x4_Trans(float x, float y, float z)
-{
-	M4x4 mat = { 
-        0.0f,           0.0f,           0.0f,
-        0.0f,           0.0f,           0.0f, 
-        x,              y,              z
-    };
+M4x4 M4x4_Trans(float x, float y, float z){
+	M4x4 mat = {{
+        { 0.0f,           0.0f,           0.0f,       0.0f },
+        { 0.0f,           0.0f,           0.0f,       0.0f },
+        { 0.0f,           0.0f,           0.0f,       0.0f }, 
+        { x,              y,              z,          1.0f }
+    }};
 	return mat;
 }
-Vec4 M4x4_VecMul(Vec4 v, M4x4 m)
-{
+Vec4 M4x4_VecMul(Vec4 v, M4x4 m){
 	Vec4 out = { 0.0f,0.0f,0.0f };
 	out.x = v.x * m.m[0][0] + v.y * m.m[1][0] + v.z * m.m[2][0];
 	out.y = v.x * m.m[0][1] + v.y * m.m[1][1] + v.z * m.m[2][1];
     out.z = v.x * m.m[0][2] + v.y * m.m[1][2] + v.z * m.m[2][2];
 	return out;
 }
-M4x4 M4x4_M4x4_Mul(M4x4 m1, M4x4 m2)
-{
+M4x4 M4x4_M4x4_Mul(M4x4 m1, M4x4 m2){
 	M4x4 mat = M4x4_Null();
 	for (int c = 0; c < 3; c++)
 		for (int r = 0; r < 3; r++)

@@ -17,7 +17,7 @@ Pair Pair_New(size_t ELEMENT_SIZE1,void* First,size_t ELEMENT_SIZE2,void* Second
     v.ELEMENT_SIZE2 = ELEMENT_SIZE2;
     v.Data = malloc(ELEMENT_SIZE1 + ELEMENT_SIZE2);
     memcpy((char*)v.Data,First,ELEMENT_SIZE1);
-    memcpy((char*)v.Data+ELEMENT_SIZE1,Second,ELEMENT_SIZE2);
+    memcpy((char*)v.Data + ELEMENT_SIZE1,Second,ELEMENT_SIZE2);
     return v;
 }
 

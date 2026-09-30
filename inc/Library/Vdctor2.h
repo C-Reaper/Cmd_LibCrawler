@@ -2,6 +2,7 @@
 #define VDCTOR2_H
 
 #include <math.h>
+#include "Float.h"
 
 typedef struct Vdc2{
     double x;

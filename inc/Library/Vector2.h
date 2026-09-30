@@ -2,6 +2,7 @@
 #define VECTOR2_H
 
 #include <math.h>
+#include "Float.h"
 
 typedef struct Vec2{
     float x;
@@ -57,6 +58,11 @@ Vec2 Vec2_Perp(Vec2 v){
 Vec2 Vec2_PerpA(Vec2 v){
     return (Vec2){ v.y,-v.x };
 }
+Vec2 Vec2_Rotate(Vec2 v,float a){
+    const float cs = cosf(a);
+    const float ss = sinf(a);
+    return (Vec2){ v.x * cs - v.y * ss, v.x * ss + v.y * cs };
+}
 float Vec2_Dot(Vec2 v1,Vec2 v2){
     return v1.x * v2.x + v1.y * v2.y;
 }
@@ -76,6 +82,15 @@ Vec2 Vec2_OfAngle(float a){
 float Vec2_AngleOf(Vec2 v){
     return atan2f(v.y,v.x);
 }
+Vec2 Vec2_Dir(unsigned char dir){
+    if(dir == 0U) return (Vec2){ 0.0f, 1.0f };
+    if(dir == 1U) return (Vec2){ 1.0f, 0.0f };
+    if(dir == 2U) return (Vec2){ 0.0f,-1.0f };
+    if(dir == 3U) return (Vec2){-1.0f, 0.0f };
+    return (Vec2){ 0.0f,0.0f };
+}
+
+
 
 Vec2 Vec2_Proj(Vec2 a,Vec2 b){
     const float dotab = Vec2_Dot(a,b);
@@ -85,6 +100,14 @@ Vec2 Vec2_Proj(Vec2 a,Vec2 b){
 }
 Vec2 Vec2_Reflect(Vec2 a,Vec2 b){
     return Vec2_Sub(Vec2_Mulf(Vec2_Proj(a,b),2.0f),b);
+}
+char Vec2_Cmp(Vec2 a,Vec2 b){
+    return Vec2_Mag2(Vec2_Sub(a,b)) < 0.0001f;
+}
+char Vec2_Closest(Vec2 t,Vec2 a,Vec2 b){
+    const float d0 = Vec2_Mag2(Vec2_Sub(t,a));
+    const float d1 = Vec2_Mag2(Vec2_Sub(t,b));
+    return d0 < d1;
 }
 
 Vec2 Vec2_Func(Vec2 a,float (*Func)(float)){

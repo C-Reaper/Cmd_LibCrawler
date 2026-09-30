@@ -4,16 +4,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 
 typedef struct Node {
-    unsigned int ELEMENT_SIZE;
+    size_t ELEMENT_SIZE;
     void* Memory;
     struct Node* Before;
     struct Node* Next;
 } Node;
 
-Node* Node_New(unsigned int ELEMENT_SIZE,void* Item){
+Node* Node_New(size_t ELEMENT_SIZE,void* Item){
     Node* n = (Node*)malloc(sizeof(Node));
     n->ELEMENT_SIZE = ELEMENT_SIZE;
     n->Memory = malloc(ELEMENT_SIZE);
@@ -31,20 +32,22 @@ void Node_Delete(Node* n) {
     n->Next->Before = n->Before;
 }
 void Node_Free(Node* n) {
-    if(n && n->Memory)  free(n->Memory);
-    n->Memory = NULL;
-    if(n)               free(n);
+    if(n){
+        if(n->Memory)  free(n->Memory);
+        if(n)          free(n);
+    }
 }
 
 
 typedef struct List {
-    int size;
+    int64_t size;
     Node* First;
 } List;
 
 List List_New() {
     List v;
     v.size = 0;
+    v.First = NULL;
     //printf("init -> List.\n");
     return v;
 }
@@ -86,7 +89,7 @@ void* List_Get(List* v, int Index) {
     }
     return NULL;
 }
-void List_Set(List* v, unsigned int ELEMENT_SIZE, void* Item, int Index) {
+void List_Set(List* v, size_t ELEMENT_SIZE, void* Item, int Index) {
     if (Index >= 0 && Index < v->size) {
         Node* Previous = List_FindNode(v,Index);
         Previous->ELEMENT_SIZE = ELEMENT_SIZE;
@@ -97,7 +100,7 @@ void List_Set(List* v, unsigned int ELEMENT_SIZE, void* Item, int Index) {
         printf("Can't Set At Index: %i\n", Index);
     }
 }
-void List_Push(List* v, unsigned int ELEMENT_SIZE, void* Item) {
+void List_Push(List* v, size_t ELEMENT_SIZE, void* Item) {
     if(Item){
         Node* n = Node_New(ELEMENT_SIZE,Item);
 
@@ -127,7 +130,7 @@ void List_Pop(List* v) {
         printf("Still Not Able to Pop.\n");
     }
 }
-void List_Add(List* v, unsigned int ELEMENT_SIZE, void* Item, unsigned int Index) {
+void List_Add(List* v, size_t ELEMENT_SIZE, void* Item, unsigned int Index) {
     if (Index >= 0 && Index <= v->size) {
         Node* n = Node_New(ELEMENT_SIZE,Item);
         if(Index==0){
@@ -199,6 +202,19 @@ void List_AddNode(List* v, Node* n, unsigned int Index) {
         printf("Still Not Able to Add.\n");
     }
 }
+void List_RemoveNode(List* v, Node* n) {
+    if(v->size > 0){
+        if(v->size == 1){
+            v->First = NULL;
+        }else if(v->First == n){
+            v->First = v->First->Next;
+        }
+
+        Node_Delete(n);
+        Node_Free(n);
+        v->size--;
+    }
+}
 void List_Clear(List* v) {
     Node* n = v->First;
     for(int i = 0;i<v->size;i++){
@@ -216,7 +232,7 @@ void List_Print(List* v) {
 
     Node* n = v->First;
     for(int i = 0;i<v->size;i++) {
-        printf("%d [%u]: -> \n",i,n->ELEMENT_SIZE);
+        printf("%d [%lu]: -> \n",i,n->ELEMENT_SIZE);
         if(n->Memory && n->ELEMENT_SIZE>0){
             for (int j = 0;j<n->ELEMENT_SIZE;j++) {
                 printf("%c ", ((char*)n->Memory)[j]);

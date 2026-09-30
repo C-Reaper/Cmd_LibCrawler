@@ -47,7 +47,7 @@ TextBox TextBox_New(Input In,Rect r,char* Path,int Columns,int Rows,int CharSize
     tb.font = AlxFont_Make(Sprite_Load(Path),Columns,Rows,CharSizeX,CharSizeY,AlxFontSizeX,AlxFontSizeY);
     tb.ScrollX = 0;
     tb.ScrollY = 0;
-    tb.Syntax = Vector_New(sizeof(Pair));
+    tb.Syntax = HighLight_New();
     tb.Bg = Bg;
     tb.Fg = 0xFF666666;
 
@@ -120,7 +120,7 @@ void TextBox_Update(TextBox* tb,States* Strokes,Vec2 Mouse){
 }
 void TextBox_Render(unsigned int* Target,int Target_Width,int Target_Height,TextBox* tb){
     Tex_SyncString(&tb->t,&tb->In.Buffer);
-    HighLight_Tex_String(&tb->Syntax,&tb->t,&tb->In.Buffer);
+    HighLight_Tex_String(&tb->Syntax,&tb->t,&tb->In.Buffer,(HighLight_State[]){ HIGHLIGHT_NONE });
 
     Rect_Render(Target,Target_Width,Target_Height,tb->r,tb->Bg);
     Rect_RenderWire(Target,Target_Width,Target_Height,tb->r,tb->Fg,1.0f);
@@ -162,7 +162,7 @@ void TextBox_Render(unsigned int* Target,int Target_Width,int Target_Height,Text
         y = F32_Clamp(y,tb->r.p.y,tb->r.p.y+tb->r.d.y);
         Size = (int)F32_Clamp(Size,0,(tb->r.d.x - (x - tb->r.p.x)) / tb->font.CharSizeX);
 
-        TCStr_RenderSizeAlxFont(Target,Target_Width,Target_Height,&tb->font,Vector_Get(&tb->t,FirstChar),(unsigned char*)(tb->In.Buffer.Memory + FirstChar),Size,x,y);
+        TCStr_RenderSizeAlxFont(Target,Target_Width,Target_Height,&tb->font,Vector_Get(&tb->t,FirstChar),(char*)(tb->In.Buffer.Memory + FirstChar),Size,x,y);
 
         int TempF = String_FirstCharOfLineLast(&tb->In.Buffer,i+1,FirstChar,LastChar,i);
         int TempL = String_LastCharOfLineLast(&tb->In.Buffer,i+1,FirstChar,LastChar,i);
@@ -209,13 +209,9 @@ void TextBox_Render(unsigned int* Target,int Target_Width,int Target_Height,Text
 void TextBox_Free(TextBox* tb){
     Input_Free(&tb->In);
     
-    for(int i = 0;i<tb->Syntax.size;i++){
-        Pair* p = (Pair*)Vector_Get(&tb->Syntax,i);
-        Pair_Free(p);
-    }
-
+    HighLight_Free(&tb->Syntax);
     Vector_Free(&tb->t);
-    Vector_Free(&tb->Syntax);
+
     free(tb->Path);
     tb->Path = NULL;
     AlxFont_Free(&tb->font);

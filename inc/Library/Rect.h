@@ -51,7 +51,7 @@ char Rect_Contains(Rect r1,Rect r2){
 char Rect_Point_Overlap(Rect r,Vec2 p){
     return (
         (p.x >= r.p.x) &&
-        (p.y >= r.p.x) &&
+        (p.y >= r.p.y) &&
         (p.x < r.p.x + r.d.x) &&
         (p.y < r.p.y + r.d.y)
     );

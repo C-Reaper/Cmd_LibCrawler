@@ -25,17 +25,19 @@ L: -lm -lX11 -lpng
 */
 
 #if defined __linux__
-#include "./AlxWindow_Linux.h"
+#include "AlxWindow_Linux.h"
 #elif defined _WIN32
-#include "./AlxWindow_Windows.h"
+#include "AlxWindow_Windows.h"
+#elif defined _WEB
+#include "AlxWindow_Web.h"
 #else
 #error "Plattform not supported!"
 #endif
 
-#include "./Math.h"
-#include "./String.h"
-#include "./Graphics.h"
-#include "./Intrinsics.h"
+#include "Math.h"
+#include "String.h"
+#include "Graphics.h"
+#include "Intrinsics.h"
 
 AlxWindow window;
 
@@ -93,10 +95,6 @@ Vec2 GetMouse(){
 }
 void SetMouse(Vec2 p){
     AlxWindow_Mouse_Set(&window,p);
-    window.MouseX = p.x;
-    window.MouseY = p.y;
-    window.MouseBeforeX = p.x;
-    window.MouseBeforeY = p.y;
 }
 Rect GetScreenRect(){
     return (Rect){ { 0.0f,0.0f },{ GetWidth(),GetHeight() } };
@@ -136,13 +134,20 @@ void Render() {
 }
 void UpdateKB(){
 	AlxWindow_UpdateKB(&window);
+
+	if (Stroke(ALX_KEY_F11).PRESSED)
+	    AlxWindow_SetFullscreen(&window);
 }
 int Create(char* Name,int Width,int Height,int AlxFontX,int AlxFontY,void (*Setup)(AlxWindow*),void (*Update)(AlxWindow*),void (*Delete)(AlxWindow*)){
-    window = AlxWindow_New(Name,Width,Height,AlxFontX,AlxFontY,Setup,Update,Delete);
+    window = AlxWindow_Null();
+    AlxWindow_PreInit(&window);
+    AlxWindow_Init(&window,Name,Width,Height,AlxFontX,AlxFontY,Setup,Update,Delete,NULL);
     return window.Running;
 }
 int CreateX(char* Name,int Width,int Height,int AlxFontX,int AlxFontY,void (*Setup)(AlxWindow*),void (*Update)(AlxWindow*),void (*Delete)(AlxWindow*),void (*Resize)(AlxWindow*)){
-    window = AlxWindow_Make(Name,Width,Height,AlxFontX,AlxFontY,Setup,Update,Delete,Resize);
+    window = AlxWindow_Null();
+    AlxWindow_PreInit(&window);
+    AlxWindow_Init(&window,Name,Width,Height,AlxFontX,AlxFontY,Setup,Update,Delete,Resize);
     return window.Running;
 }
 void Start(){

@@ -35,4 +35,36 @@ double Math_3D_Grad(int hash,double x,double y,double z) {
 	return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
 }
 
+double Math_Nw_LambertW_0(double x){
+	const double w0 = log(x);
+	double wn1 = w0;
+
+	for(int i = 0;i<100;i++){
+		const double ewn1 = exp(wn1);
+		wn1 = wn1 - (wn1 * ewn1 - x) / (ewn1 * (wn1 + 1.0));
+	}
+
+	return wn1;
+}
+double Math_Hy_LambertW_0(double x){
+	double w0;
+	if(x < 1.0) w0 = x;
+	else{
+		const double l1 = log(x);
+		const double l2 = log(l1);
+		w0 = l1 - l2 + l2 / l1;
+	}
+
+	double wn1 = w0;
+	for(int i = 0;i<100;i++){
+		const double ewn1 = exp(wn1);
+		const double xewn1 = wn1 * ewn1 - x;
+		const double wn11 = wn1 + 1.0;
+		const double wn112 = 2.0f * wn11;
+		const double down = (ewn1 * wn11 - ((wn1 + 2.0) * xewn1 / wn112));
+		wn1 = wn1 - xewn1 / down;
+	}
+	return wn1;
+}
+
 #endif

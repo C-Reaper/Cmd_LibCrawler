@@ -65,6 +65,7 @@ typedef struct Input{
     int Curser;
     int CurserEnd;
     char Again;
+    char changed;
     Timepoint FirstPress;
     Timepoint LastTime;
     States Strokes[MAX_STROKES];
@@ -84,6 +85,7 @@ Input Input_New(int MaxLength,int MaxLines){
     In.Curser = 0;
     In.CurserEnd = -1;
     In.Again = 0;
+    In.changed = 0;
     In.FirstPress = 0;
     In.LastTime = 0;
     In.Handlers = Vector_New(sizeof(InputHandler));
@@ -206,10 +208,10 @@ void Input_SetText(Input* In,char* Text){
 void Input_UDKB(Input* In,States Strokes[MAX_STROKES]){
     memcpy(In->Strokes,Strokes,sizeof(States) * MAX_STROKES);
 
-    char Shift = Strokes[ALX_KEY_SHIFT].DOWN || Strokes[ALX_KEY_R_SHIFT].DOWN;
-    char Ctrl = Strokes[ALX_KEY_CTRL].DOWN || Strokes[ALX_KEY_ALTGR].DOWN;
-
-    short CharThen = In->LastChar;
+    const char Shift = Strokes[ALX_KEY_SHIFT].DOWN || Strokes[ALX_KEY_R_SHIFT].DOWN;
+    const char Ctrl = Strokes[ALX_KEY_CTRL].DOWN || Strokes[ALX_KEY_ALTGR].DOWN;
+    const short CharThen = In->LastChar;
+    
     if(!In->Strokes[In->LastKey].DOWN){
         In->LastKey = 0;
         In->LastChar = 0; 
@@ -227,6 +229,8 @@ void Input_UDKB(Input* In,States Strokes[MAX_STROKES]){
 }
 void Input_DefaultReact(Input* In,void* Parent){
     if(In->Enabled){
+        //In->changed = 0;
+
         if(In->Again){
             for(int i = 0;i<In->Handlers.size;i++){
                 InputHandler* ih = (InputHandler*)Vector_Get(&In->Handlers,i);
@@ -264,6 +268,7 @@ void Input_DefaultReact(Input* In,void* Parent){
             char* ret = Clipboard_Paste();
             if(ret) String_Add(&In->Buffer,ret,In->Curser);
             In->CurserEnd = -1;
+            In->changed = 1;
         }else if(In->Again && Input_Stroke(In,ALX_KEY_X).DOWN && Input_Stroke(In,ALX_KEY_CTRL).DOWN){
             if(In->CurserEnd>=0){
                 int Up = In->Curser<In->CurserEnd?In->Curser:In->CurserEnd;
@@ -280,6 +285,7 @@ void Input_DefaultReact(Input* In,void* Parent){
 
                 free(cstr);
                 In->CurserEnd = -1;
+                In->changed = 1;
             }
         }else if(In->Again && (In->LastChar>=32 && In->LastChar<127)){
             if(In->CurserEnd>=0){
@@ -303,6 +309,7 @@ void Input_DefaultReact(Input* In,void* Parent){
                 In->CharBefore = In->LastChar;
             }
             In->CurserEnd = -1;
+            In->changed = 1;
         }else if(In->Again && Input_Stroke(In,ALX_KEY_BACKSPACE).DOWN){
             if(In->CurserEnd>=0){
                 int Up = In->Curser<In->CurserEnd?In->Curser:In->CurserEnd;
@@ -333,6 +340,7 @@ void Input_DefaultReact(Input* In,void* Parent){
                     In->Curser = 0;
             }
             In->CurserEnd = -1;
+            In->changed = 1;
         }else if(In->Again && Input_Stroke(In,ALX_KEY_ENTER).DOWN){
             char* cstr = String_CStr(&In->Buffer);
             int Count = CStr_CountOf(cstr,'\n');
@@ -343,6 +351,7 @@ void Input_DefaultReact(Input* In,void* Parent){
                 In->CharBefore = '\n';
                 In->CurserEnd = -1;
             }
+            In->changed = 1;
         }else if(In->Again && !Input_Stroke(In,ALX_KEY_CTRL).DOWN && Input_Stroke(In,ALX_KEY_LEFT).DOWN){
             if(Input_Stroke(In,ALX_KEY_SHIFT).DOWN && In->CurserEnd==-1) In->CurserEnd = In->Curser;
             In->Curser = Input_FindChar(In,In->Curser,In->Curser - 1,INPUT_BLOCKCHAR);

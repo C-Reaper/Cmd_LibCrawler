@@ -77,9 +77,9 @@ M3x3 M3x3_Null(){
 }
 M3x3 M3x3_FloatMul(float s,M3x3 m){
 	M3x3 mat = {{ 
-        { m.m[0][0] / s,m.m[0][1] / s,m.m[0][2] / s },
-        { m.m[1][0] / s,m.m[1][1] / s,m.m[1][2] / s },
-        { m.m[2][0] / s,m.m[2][1] / s,m.m[2][2] / s }
+        { m.m[0][0] * s,m.m[0][1] * s,m.m[0][2] * s },
+        { m.m[1][0] * s,m.m[1][1] * s,m.m[1][2] * s },
+        { m.m[2][0] * s,m.m[2][1] * s,m.m[2][2] * s }
     }};
 	return mat;
 }

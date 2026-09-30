@@ -107,10 +107,6 @@ void Triangle_Render(unsigned int* Target,int Target_Width,int Target_Height,Tri
 	}
 }
 void Triangle_RenderS(unsigned int* Target,int Target_Width,int Target_Height,Triangle t,unsigned int c){
-	// if((t.p1.x<0.0f || t.p1.x>=Target_Width || t.p1.y<0.0f || t.p1.y>=Target_Height) &&
-	//    (t.p2.x<0.0f || t.p2.x>=Target_Width || t.p2.y<0.0f || t.p2.y>=Target_Height) &&
-	//    (t.p3.x<0.0f || t.p3.x>=Target_Width || t.p3.y<0.0f || t.p3.y>=Target_Height))
-	//    return;
 	if((t.p1.x<0.0f && t.p2.x<0.0f && t.p3.x<0.0f) ||
 	   (t.p1.y<0.0f && t.p2.y<0.0f && t.p3.y<0.0f) ||
 	   (t.p1.x>=Target_Width  && t.p2.x>=Target_Width  && t.p3.x>=Target_Width) ||
@@ -154,8 +150,8 @@ void Triangle_RenderS(unsigned int* Target,int Target_Width,int Target_Height,Tr
 
 	if((int)h1.y==(int)h3.y) return;
 
-	const float xmin = F32_Max(0.0f,F32_Min(F32_Min(h1.x,h2.x),h3.x));
-	const float xmax = F32_Min(Target_Width,F32_Max(F32_Max(h1.x,h2.x),h3.x));
+	//const float xmin = F32_Max(0.0f,F32_Min(F32_Min(h1.x,h2.x),h3.x));
+	//const float xmax = F32_Min(Target_Width,F32_Max(F32_Max(h1.x,h2.x),h3.x));
 	
 	const float x12min = F32_Min(h1.x,h2.x);
 	const float x12max = F32_Max(h1.x,h2.x);
@@ -195,12 +191,12 @@ void Triangle_RenderS(unsigned int* Target,int Target_Width,int Target_Height,Tr
 		x2 = F32_Clamp(x2,x12min,x12max);
 
 		int sx;
-		if(x1<x2) 	sx = (int)F32_Clamp(x1 - 2.0f * F32_Abs(dir1) - 0.5f,cx13min,cx13max);
-		else		sx = (int)F32_Clamp(x2 - 2.0f * F32_Abs(dir2) - 0.5f,cx12min,cx12max);
+		if(x1<x2) 	sx = (int)F32_Clamp(x1 - F32_Abs(dir1),cx13min,cx13max);
+		else		sx = (int)F32_Clamp(x2 - F32_Abs(dir2),cx12min,cx12max);
 
 		int bx;
-		if(x1>x2) 	bx = (int)F32_Clamp(x1 + F32_Abs(dir1) + 1.5f,cx13min,cx13max);
-		else		bx = (int)F32_Clamp(x2 + F32_Abs(dir2) + 1.5f,cx12min,cx12max);
+		if(x1>x2) 	bx = (int)F32_Clamp(x1 + F32_Abs(dir1),cx13min,cx13max);
+		else		bx = (int)F32_Clamp(x2 + F32_Abs(dir2),cx12min,cx12max);
 
 		if(bx<=sx)
 			continue;
@@ -223,12 +219,12 @@ void Triangle_RenderS(unsigned int* Target,int Target_Width,int Target_Height,Tr
 		x2 = F32_Clamp(x2,x23min,x23max);
 		
 		int sx;
-		if(x1<x2) 	sx = (int)F32_Clamp(x1 - 2.0f * F32_Abs(dir1) - 0.5f,cx13min,cx13max);
-		else		sx = (int)F32_Clamp(x2 - 2.0f * F32_Abs(dir2) - 0.5f,cx23min,cx23max);
+		if(x1<x2) 	sx = (int)F32_Clamp(x1 - F32_Abs(dir1),cx13min,cx13max);
+		else		sx = (int)F32_Clamp(x2 - F32_Abs(dir2),cx23min,cx23max);
 
 		int bx;
-		if(x1>x2) 	bx = (int)F32_Clamp(x1 + F32_Abs(dir1) + 1.5f,cx13min,cx13max);
-		else		bx = (int)F32_Clamp(x2 + F32_Abs(dir2) + 1.5f,cx23min,cx23max);
+		if(x1>x2) 	bx = (int)F32_Clamp(x1 + F32_Abs(dir1),cx13min,cx13max);
+		else		bx = (int)F32_Clamp(x2 + F32_Abs(dir2),cx23min,cx23max);
 
 		if(bx<=sx) continue;
 

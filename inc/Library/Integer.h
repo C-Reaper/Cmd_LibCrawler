@@ -82,7 +82,31 @@ bol I32_Prime(I32 a){
     }
     return 1;
 }
+void I32_Swap(I32* a,I32* b){
+    I32 c = *a;
+    *a = *b;
+    *b = c;
+}
 
+U32 U32_Sqrt(I64 a){
+    U32 max = 32;
+    I64  num = 1;
+    for(U32 i = 0;i<max;i++){
+        U64 z = num;
+        num = (num + (a / num)) >> 1;
+        if(num==z) break;
+    }
+    return num;
+}
+U32 U32_Min(U32 a,U32 b){
+    return a<b?a:b;
+}
+U32 U32_Max(U32 a,U32 b){
+    return a>b?a:b;
+}
+U32 U32_Clamp(U32 a,U32 min,U32 max){
+    return U32_Max(min,U32_Min(max,a));
+}
 U32 U32_Digits2(U32 n) {
     U32 count = 0;
     do {
@@ -159,6 +183,10 @@ U64 U64_Pow10(U64 a){
     U64 n = 1UL;
     for(int i = 0;i<a;i++)
         n *= 10UL;
+    return n;
+}
+U64 U64_Pow2(U64 a){
+    U64 n = 1UL << a;
     return n;
 }
 

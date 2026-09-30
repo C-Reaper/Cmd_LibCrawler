@@ -63,5 +63,8 @@ Complex2 Complex2_Norm(Complex2 v){
 Complex2 Complex2_OfAngle(double a){
     return (Complex2){ cos(a),sin(a) };
 }
+double Complex2_AngleOf(Complex2 v){
+    return atan2(v.i,v.r);
+}
 
 #endif

@@ -145,5 +145,10 @@ char Char_toUpper(char c){
     }
     return c;
 }
+char Char_Alpha_toUpper(char c){
+    if(Char_Alpha(c) && c>=97)
+        c -= (97-65);
+    return c;
+}
 
 #endif // !CHAR_H

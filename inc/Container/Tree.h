@@ -71,6 +71,8 @@ void Branch_Clear(Branch* n) {
     Vector_Clear(&n->Childs);
 }
 void Branch_ForEach(Branch* n,void (*Func)(void* Element)) {
+    if(!n) return;
+    
     for(int i = 0;i<n->Childs.size;i++){
         Branch* c = *(Branch**)Vector_Get(&n->Childs,i);
         Func(c->Memory);
@@ -119,9 +121,10 @@ Branch* Tree_Get_Branch(Tree* v,int Layers,int* Indices) {
 }
 void Tree_SetC_Branch(Tree* v,int Layers,int* Indices,void* Item,unsigned int ELEMENT_SIZE,Branch** b) {
     Branch* Before = v->Root;
+    
     for(int i = 0;i<Layers;i++){
-        Branch* b = *(Branch**)Vector_Get(&Before->Childs,Indices[i]);
-        Before = b;
+        Branch* const bh = *(Branch**)Vector_Get(&Before->Childs,Indices[i]);
+        Before = bh;
     }
 
     Branch_Set(Before,Item,ELEMENT_SIZE);

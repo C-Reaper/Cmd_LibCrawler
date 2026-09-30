@@ -25,14 +25,15 @@
 typedef struct AlxWindow {
     char* Name;
     Pixel* Buffer;
-    unsigned long long LastTime;
-    double ElapsedTime;
-    int x;
-    int y;
     int Width;
     int Height;
     int PixelWidth;
     int PixelHeight;
+
+    int x;
+    int y;
+    unsigned long long LastTime;
+    double ElapsedTime;
     int MouseX;
     int MouseY;
     int MouseBeforeX;
@@ -45,12 +46,14 @@ typedef struct AlxWindow {
     void (*resize)(struct AlxWindow*);
     States Strokes[MAX_STROKES];
     AlxFont font;
+
     FDuration Delay;
     FDuration Repeat;
     Timepoint PressTick;
     Timepoint PressPoint;
     unsigned short LastKey;
     unsigned short LastChar;
+    int Fullscreen;
     
     int screen;
     Display* display;
@@ -64,8 +67,13 @@ typedef struct AlxWindow {
 } AlxWindow;
 
 void AlxWindow_Mouse_Set(AlxWindow* w,Vec2 p){
-    XWarpPointer(w->display,w->alxwindow,w->alxwindow,0,0,0,0,p.x,p.y);
+    XWarpPointer(w->display,w->alxwindow,w->alxwindow,0,0,0,0,p.x * w->PixelWidth,p.y * w->PixelHeight);
     XFlush(w->display);
+
+    w->MouseX = p.x;
+    w->MouseY = p.y;
+    w->MouseBeforeX = p.x;
+    w->MouseBeforeY = p.y;
 }
 void AlxWindow_Mouse_SetInvisible(AlxWindow* w){
     Pixmap emptyPixmap = XCreatePixmap(w->display,w->alxwindow,1,1,1);
@@ -88,6 +96,34 @@ void AlxWindow_Mouse_SetVisible(AlxWindow* w){
     Cursor visibleCursor = XCreateFontCursor(w->display,XC_arrow);
     XDefineCursor(w->display,w->alxwindow,visibleCursor);
     //XFreeCursor(w->display,visibleCursor);
+}
+void AlxWindow_SetFullscreen(AlxWindow* w){
+    Atom wm_state   = XInternAtom(w->display, "_NET_WM_STATE", False);
+    Atom fullscreen = XInternAtom(w->display, "_NET_WM_STATE_FULLSCREEN", False);
+
+    XEvent xev;
+    memset(&xev, 0, sizeof(xev));
+
+    xev.type = ClientMessage;
+    xev.xclient.window = w->alxwindow;
+    xev.xclient.message_type = wm_state;
+    xev.xclient.format = 32;
+
+    // TOGGLE / FORCE
+    xev.xclient.data.l[0] = 2; // _NET_WM_STATE_TOGGLE
+    xev.xclient.data.l[1] = fullscreen;
+    xev.xclient.data.l[2] = 0;
+    xev.xclient.data.l[3] = 1;
+
+    XSendEvent(w->display,
+               DefaultRootWindow(w->display),
+               False,
+               SubstructureRedirectMask | SubstructureNotifyMask,
+               &xev);
+
+    XFlush(w->display);
+
+    w->Fullscreen = !w->Fullscreen;
 }
 
 void AlxWindow_Exit(AlxWindow* w){
@@ -192,6 +228,9 @@ void AlxWindow_Render(AlxWindow* w) {
     XFlush(w->display);
 }
 void AlxWindow_UpdateKB(AlxWindow* w){
+    w->MouseBeforeX = w->MouseX;
+    w->MouseBeforeY = w->MouseY;
+
 	w->LastKey = 0;
     w->LastChar = 0;
 
@@ -248,8 +287,6 @@ void AlxWindow_UpdateKB(AlxWindow* w){
                 w->Strokes[event.xbutton.button].DOWN = 0;
             }
         }else if (event.type == MotionNotify) {
-            w->MouseBeforeX = w->MouseX;
-            w->MouseBeforeY = w->MouseY;
             w->MouseX = event.xmotion.x / w->PixelWidth;
             w->MouseY = event.xmotion.y / w->PixelHeight;
         }else if (event.type == ConfigureNotify) {
@@ -328,6 +365,12 @@ void AlxWindow_PreInit(AlxWindow* w){
         return;
     }
     w->screen = DefaultScreen(w->display);
+
+    w->vinfo = (XVisualInfo*)malloc(sizeof(XVisualInfo));
+    if (!XMatchVisualInfo(w->display,w->screen,32,TrueColor,w->vinfo)) {
+        printf("[AlxWindow]: Make -> Error: 32-Bit TrueColor Visual not avalible!\n");
+        return;
+    }
 }
 void AlxWindow_Init(
     AlxWindow* w,
@@ -398,13 +441,6 @@ AlxWindow AlxWindow_Make(
 ){
     AlxWindow w = AlxWindow_Null();
     AlxWindow_PreInit(&w);
-
-    w.vinfo = (XVisualInfo*)malloc(sizeof(XVisualInfo));
-    if (!XMatchVisualInfo(w.display,w.screen,32,TrueColor,w.vinfo)) {
-        printf("[AlxWindow]: Make -> Error: 32-Bit TrueColor Visual not avalible!\n");
-        return w;
-    }
-
     AlxWindow_Init(&w,Name,Width,Height,AlxFontX,AlxFontY,Setup,Update,Delete,Resize);
     return w;
 }
@@ -433,18 +469,23 @@ void AlxWindow_GameInit(AlxWindow* w){
 void AlxWindow_GameUpdate(AlxWindow* w){
     w->ElapsedTime = (double)(Time_Nano() - w->LastTime) / 1E9;
     w->LastTime = Time_Nano();
-    double Fps = 1.0 / w->ElapsedTime;
+    const double Fps = 1.0 / w->ElapsedTime;
 
+    w->MouseBeforeX = w->MouseX;
+    w->MouseBeforeY = w->MouseY;
     AlxWindow_UpdateKB(w);
 
     char Buffer[128];
     sprintf(Buffer,"Alx - %s - %4.1f",w->Name,Fps);
     XStoreName(w->display,w->alxwindow,Buffer);
+
+    if (w->Strokes[ALX_KEY_F11].PRESSED)
+	    AlxWindow_SetFullscreen(w);
 }
 void AlxWindow_GameLoop(AlxWindow* w,void (*Render)(AlxWindow*)){
     while (w->Running) {
         AlxWindow_GameUpdate(w);
-
+        
         if(w->update) w->update(w);
         
         Render(w);

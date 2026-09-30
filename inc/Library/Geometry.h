@@ -1,6 +1,9 @@
 #ifndef GEOMETRY_H
 #define GEOMETRY_H
 
+#include "../Container/Vector.h"
+
+#include "Math.h"
 #include "Line.h"
 #include "Ray.h"
 #include "Triangle.h"
@@ -8,8 +11,6 @@
 #include "Rect.h"
 #include "Circle.h"
 #include "ConvexShape.h"
-#include "Math.h"
-#include "../Container/Vector.h"
 
 //  |           |           |           |           |           |           |           |           |
 //  |           |  POINT    |  RAY      |  LINE     |  CIRCLE   |  RECT     |  TRIANGLE |  POLYGON  |
@@ -134,6 +135,7 @@ char Contains_Triangle_Line(Triangle c,Line l){
     return 0;
 }
 
+
 Vec2 Intersections_Ray_Ray(Ray r1,Ray r2){
     if(r1.m==r2.m) return (Vec2){ POINT_INVALID,POINT_INVALID };
 
@@ -141,6 +143,7 @@ Vec2 Intersections_Ray_Ray(Ray r1,Ray r2){
     Vec2 Ip = { Ix,r1.m * Ix + r1.t };
     return Ip;
 }
+
 Vec2 Intersections_Line_Ray(Line l,Ray r){
     Vec2 Out = { 0.0f,0.0f };
     if(l.e.x==l.s.x)        Out = (Vec2){ l.s.x,Ray_Y(r,l.s.x) };
@@ -179,21 +182,7 @@ Vec2 Intersections_Line_Line(Line l1,Line l2){
         return (Vec2){ POINT_INVALID,POINT_INVALID };
     return Out;
 }
-Vector Intersections_Circle_Circle(Circle c1,Circle c2){
-    Vector Ips = Vector_New(sizeof(Vec2));
-    float d = Vec2_Mag(Vec2_Sub(c2.p,c1.p));
-    if(d>c1.r+c2.r)             return Ips;
-    if(d<F32_Abs(c1.r-c2.r))    return Ips;
-    Vec2 D = Vec2_Norm(Vec2_Sub(c2.p,c1.p));
-    float a = (c1.r * c1.r - c2.r * c2.r + d * d) / (2.0f * d);
-    Vec2 P = Vec2_Add(c1.p,Vec2_Mulf(D,a));
-    float h = F32_Sqrt(c1.r * c1.r - a * a);
-    Vec2 P1 = Vec2_Add(P,Vec2_Perp(Vec2_Mulf(D,h)));
-    Vec2 P2 = Vec2_Add(P,Vec2_PerpA(Vec2_Mulf(D,h)));
-    Vector_Push(&Ips,&P1);
-    Vector_Push(&Ips,&P2);
-    return Ips;
-}
+
 Vector Intersections_Circle_Ray(Circle c,Ray r){
     Vector Ips = Vector_New(sizeof(Vec2));
     
@@ -255,19 +244,6 @@ Vector Intersections_Circle_Line(Circle c,Line l){
     }
     return Ips;
 }
-Vector Intersections_Circle_Triangle(Circle c,Triangle t){
-    Vector Ips = Vector_New(sizeof(Vec2));
-    Line lines[3] = { {t.p1,t.p2},{t.p2,t.p3},{t.p3,t.p1} }; 
-    for(int i = 0;i<3;i++){
-        Vector Points = Intersections_Circle_Line(c,lines[i]);
-        for(int j = 0;j<Points.size;j++){
-            Vec2 p = *(Vec2*)Vector_Get(&Points,j);
-            if(Point_Valid(p)) Vector_Push(&Ips,&p);
-        }
-        Vector_Free(&Points);
-    }
-    return Ips;
-}
 Vector Intersections_Circle_Rect(Circle c,Rect r){
     Vector Ips = Vector_New(sizeof(Vec2));
     
@@ -287,23 +263,35 @@ Vector Intersections_Circle_Rect(Circle c,Rect r){
     }
     return Ips;
 }
-Vector Intersections_Triangle_Triangle(Triangle c1,Triangle c2){
+Vector Intersections_Circle_Circle(Circle c1,Circle c2){
     Vector Ips = Vector_New(sizeof(Vec2));
-	Line l1[3] = {{ c1.p1,c1.p2 },
-				  { c1.p2,c1.p3 },
-				  { c1.p3,c1.p1 }};
-	Line l2[3] = {{ c2.p1,c2.p2 },
-				  { c2.p2,c2.p3 },
-				  { c2.p3,c2.p1 }};
-	
-	for(int i = 0;i<3;i++){
-		for(int j = 0;j<3;j++){
-			Vec2 p = Intersections_Line_Line(l1[i],l2[j]);
-			if(Point_Valid(p)) Vector_Push(&Ips,&p);
-		}
-	}
+    float d = Vec2_Mag(Vec2_Sub(c2.p,c1.p));
+    if(d>c1.r+c2.r)             return Ips;
+    if(d<F32_Abs(c1.r-c2.r))    return Ips;
+    Vec2 D = Vec2_Norm(Vec2_Sub(c2.p,c1.p));
+    float a = (c1.r * c1.r - c2.r * c2.r + d * d) / (2.0f * d);
+    Vec2 P = Vec2_Add(c1.p,Vec2_Mulf(D,a));
+    float h = F32_Sqrt(c1.r * c1.r - a * a);
+    Vec2 P1 = Vec2_Add(P,Vec2_Perp(Vec2_Mulf(D,h)));
+    Vec2 P2 = Vec2_Add(P,Vec2_PerpA(Vec2_Mulf(D,h)));
+    Vector_Push(&Ips,&P1);
+    Vector_Push(&Ips,&P2);
     return Ips;
 }
+Vector Intersections_Circle_Triangle(Circle c,Triangle t){
+    Vector Ips = Vector_New(sizeof(Vec2));
+    Line lines[3] = { {t.p1,t.p2},{t.p2,t.p3},{t.p3,t.p1} }; 
+    for(int i = 0;i<3;i++){
+        Vector Points = Intersections_Circle_Line(c,lines[i]);
+        for(int j = 0;j<Points.size;j++){
+            Vec2 p = *(Vec2*)Vector_Get(&Points,j);
+            if(Point_Valid(p)) Vector_Push(&Ips,&p);
+        }
+        Vector_Free(&Points);
+    }
+    return Ips;
+}
+
 Vector Intersections_Triangle_Ray(Triangle c,Ray r){
     Vector Ips = Vector_New(sizeof(Vec2));
 	Line l1 = { c.p1,c.p2 };
@@ -348,6 +336,27 @@ Vector Intersections_Triangle_Rect(Triangle c,Rect r){
     }
     return Ips;
 }
+Vector Intersections_Triangle_Circle(Triangle t,Circle c){
+    return Intersections_Circle_Triangle(c,t);
+}
+Vector Intersections_Triangle_Triangle(Triangle c1,Triangle c2){
+    Vector Ips = Vector_New(sizeof(Vec2));
+	Line l1[3] = {{ c1.p1,c1.p2 },
+				  { c1.p2,c1.p3 },
+				  { c1.p3,c1.p1 }};
+	Line l2[3] = {{ c2.p1,c2.p2 },
+				  { c2.p2,c2.p3 },
+				  { c2.p3,c2.p1 }};
+	
+	for(int i = 0;i<3;i++){
+		for(int j = 0;j<3;j++){
+			Vec2 p = Intersections_Line_Line(l1[i],l2[j]);
+			if(Point_Valid(p)) Vector_Push(&Ips,&p);
+		}
+	}
+    return Ips;
+}
+
 Vector Intersections_Rect_Ray(Rect r,Ray ray){
 	Line l1 = { r.p,Vec2_Add(r.p,(Vec2){ r.d.x,0.0f }) };
     Line l2 = { r.p,Vec2_Add(r.p,(Vec2){ 0.0f,r.d.y }) };
@@ -405,6 +414,13 @@ Vector Intersections_Rect_Rect(Rect r1,Rect r2){
     }
     return Ips;
 }
+Vector Intersections_Rect_Circle(Rect r,Circle c){
+	return Intersections_Circle_Rect(c,r);
+}
+Vector Intersections_Rect_Triangle(Rect r,Triangle t){
+	return Intersections_Triangle_Rect(t,r);
+}
+
 
 char Overlap_Rect_Ray(Rect r,Ray l){
 	Vector v = Intersections_Rect_Ray(r,l);
@@ -489,12 +505,12 @@ Vec2 Nearest_Line_Point(Line l,Point p){
 }
 
 
-typedef char Side;
-#define SIDE_NONE   0
-#define SIDE_TOP    1
-#define SIDE_BOTTOM 2
-#define SIDE_LEFT   3
-#define SIDE_RIGHT  4
+typedef unsigned char Side;
+#define SIDE_NONE       0U
+#define SIDE_TOP        1U
+#define SIDE_BOTTOM     2U
+#define SIDE_LEFT       3U
+#define SIDE_RIGHT      4U
 
 Side Side_Rect_Point(Rect r,Vec2 p){
     Vec2 m = Vec2_Add(r.p,Vec2_Mulf(r.d,0.5f));
@@ -612,7 +628,6 @@ void Resolve_ConvexShape_ConvexShape(ConvexShape* cs1,ConvexShape* cs2){
 void Resolve_Rect_Rect_V(Rect r1,Rect* r2,Vec2 np){
     const Vec2 m1 = Vec2_Add(r1.p,Vec2_Mulf(r1.d,0.5f));
     const Vec2 m2 = Vec2_Add(r2->p,Vec2_Mulf(r2->d,0.5f));
-
     const Rect ex = Rect_New(m1,Vec2_Add(r1.d,r2->d));
     
     const Line l = Line_New(m2,np);

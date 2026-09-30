@@ -59,15 +59,15 @@ Vector Vector_Null(){
 int Vector_Size(Vector* v){
     return v->size;
 }
-void* Vector_Get(Vector* v, int Index) {
+void* Vector_Get(Vector* v, unsigned int Index) {
     if(!v->Memory) return NULL;
-    if (Index >= 0 && Index < v->size) {
+    if (Index < v->size) {
         return (char*)v->Memory + Index * v->ELEMENT_SIZE;
     }
     return NULL;
 }
 void Vector_Set(Vector* v, void* Item, unsigned int Index) {
-    if (Index >= 0 && Index < v->size) {
+    if (Index < v->size) {
         void* Dst = (char*)v->Memory + Index * v->ELEMENT_SIZE;
         memcpy(Dst,Item,v->ELEMENT_SIZE);
     }
@@ -129,7 +129,7 @@ void Vector_ExpandBy(Vector* v,int ExpandSize) {
     v->Memory = NewMemory;
 }
 void Vector_Move(Vector* v, unsigned int Index, int Count) {
-    if(Index >= 0 && Index < v->size){
+    if(Index < v->size){
         if(Count>0){
             int targetSize = v->size + Count;
             int NewSize = v->SIZE;
@@ -181,7 +181,7 @@ void Vector_PushCount(Vector* v, void* Items, int Count) {
 }
 void Vector_Add(Vector* v, void* Item, unsigned int Index) {
     Vector_Expand(v);
-    if (v->size < v->SIZE && Index >= 0 && Index < v->size) {
+    if (v->size < v->SIZE && Index < v->size) {
         void* Src = ((char*)v->Memory + Index * v->ELEMENT_SIZE);
         void* Dst = ((char*)v->Memory + (Index + 1) * v->ELEMENT_SIZE);
         memmove(Dst,Src,(int)((v->size - Index) * v->ELEMENT_SIZE));
@@ -224,20 +224,20 @@ void Vector_PopTopCount(Vector* v,int Count) {
     }
 }
 void Vector_Remove(Vector* v, unsigned int Index) {
-    if (Index >= 0 && Index < v->size-1) {
+    if (Index < v->size-1 && v->size > 0) {
         v->size--;
         void* Src = &(((char*)v->Memory)[(Index + 1) * v->ELEMENT_SIZE]);
         void* Dst = &(((char*)v->Memory)[Index * v->ELEMENT_SIZE]);
         memmove(Dst, Src, (int)((v->size - Index) * v->ELEMENT_SIZE));
         Vector_Compress(v);
-    }else if(Index >= 0 && Index == v->size-1){
+    }else if(Index == v->size-1){
         Vector_PopTop(v);
     }else {
-        printf("[Vector]: not able to Remove At Index: %i\n", Index);
+        printf("[Vector]: not able to Remove At Index: %d\n", Index);
     }
 }
 void Vector_RemoveCount(Vector* v, unsigned int Index,int Count) {
-    if (Index >= 0 && Index < v->size-1) {
+    if (Index < v->size-1) {
         // if(Index + Count<v->size)
         //     Vector_Move(v,Index + Count,-Count);
         
@@ -246,10 +246,10 @@ void Vector_RemoveCount(Vector* v, unsigned int Index,int Count) {
         for(int i = 0;i<Count;i++){
             Vector_Remove(v,Index);
         }
-    }else if(Index >= 0 && Index == v->size-1){
+    }else if(Index == v->size-1){
         Vector_PopTop(v);
     }else {
-        printf("[Vector]: not able to RemoveCount At Index: %i\n", Index);
+        printf("[Vector]: not able to RemoveCount At Index: %d\n", Index);
     }
 }
 void Vector_Swap(Vector* v,unsigned int i1,unsigned int i2) {
@@ -264,10 +264,12 @@ void Vector_Swap(Vector* v,unsigned int i1,unsigned int i2) {
     }
 }
 void Vector_Reset(Vector* v) {
+    if(!v) return;
     if(v->Memory) free(v->Memory);
     v->Memory = malloc(v->SIZE * v->ELEMENT_SIZE);
 }
 void Vector_Clear(Vector* v) {
+    if(!v) return;
     if(v->size==0) return;
     if(v->SIZE<=10){
         v->size = 0;
@@ -279,17 +281,19 @@ void Vector_Clear(Vector* v) {
     v->SIZE = VECTOR_STARTSIZE;
 }
 void Vector_Free(Vector* v) {
-    if (v->Memory) free(v->Memory);
+    if(!v) return;
+    if(v->Memory) free(v->Memory);
     v->Memory = NULL;
     v->ELEMENT_SIZE = (int)0ULL;
     v->size = 0U;
 }
 void Vector_Print(Vector* v) {
+    if(!v) return;
     printf("--- Vector ---\n");
-    printf("Size:%i\n", (int)v->size);
-    printf("ESize:%i\n", (int)v->ELEMENT_SIZE);
+    printf("Size: %d\n", (int)v->size);
+    printf("ESize: %d\n", (int)v->ELEMENT_SIZE);
     for (int i = 0; i < v->size; i++) {
-        printf("Element %i: ", i);
+        printf("Element %d: ", i);
         for (int j = 0; j < v->ELEMENT_SIZE; j++) {
             printf("%x", ((char*)v->Memory)[i * v->ELEMENT_SIZE + j]);
         }

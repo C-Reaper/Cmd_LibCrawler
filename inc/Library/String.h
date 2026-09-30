@@ -19,6 +19,24 @@ String String_New(){
     String s = Vector_New(sizeof(char));
     return s;
 }
+String String_New_S(unsigned int size){
+    String s = Vector_Make(sizeof(char),size);
+    return s;
+}
+String String_Move(char* cstr,int size){
+    String s;
+    s.ELEMENT_SIZE = sizeof(char);
+    if(cstr && size > 0){
+        s.Memory = cstr;
+        s.SIZE = size;
+    }else{
+        if(cstr) free(cstr);
+        s.SIZE = VECTOR_STARTSIZE;
+        s.Memory = (char*)malloc(sizeof(char) * s.SIZE);
+    }
+    s.size = size;
+    return s;
+}
 String String_Null(){
     String s = Vector_Null();
     return s;
@@ -31,13 +49,15 @@ char String_Get(String* s,int Index){
 void String_Set(String* s,char c,int Index){
     ((char*)s->Memory)[Index] = c;
 }
-void String_Append(String* s,char* cstr){
+void String_Append_S(String* s,const char* cstr,int size){
     if(cstr){
-        int Size = CStr_Size(cstr);
-        for(int i = 0;i<Size;i++){
+        for(int i = 0;i<size;i++){
             Vector_Push(s,(char*)cstr+i);
         }
     }
+}
+void String_Append(String* s,const char* cstr){
+    return String_Append_S(s,cstr,CStr_Size(cstr));
 }
 void String_AppendChar(String* s,char app){
     Vector_Push(s,&app);
@@ -50,6 +70,11 @@ void String_AppendString(String* s,String* app){
 
 void String_AppendNumber(String* s,Number n){
     CStr d = (CStr)Number_Get(n);
+    String_Append(s,d);
+    CStr_Free(&d);
+}
+void String_AppendHex(String* s,Number n){
+    CStr d = (CStr)U64_Get_X(n);
     String_Append(s,d);
     CStr_Free(&d);
 }
@@ -97,6 +122,11 @@ void String_Add(String* s,char* cstr,unsigned int Index){
         Vector_Add(s,cstr+i,Index+i);
     }
 }
+void String_AddString(String* s,String* other,unsigned int Index){
+    for(int i = 0;i<other->size;i++){
+        Vector_Add(s,(char[]){ String_Get(other,i) },Index + i);
+    }
+}
 void String_AddChar(String* s,char c,unsigned int Index){
     Vector_Add(s,&c,Index);
 }
@@ -136,6 +166,14 @@ void String_SetCStr(String* s,char* setter){
 void String_SetS(String* s,String* setter){
     String_Clear(s);
     String_AppendString(s,setter);
+}
+int String_CountOf(String* s,char c){
+    int Count = 0;
+    for(int i = 0;i<s->size;i++){
+        if(String_Get(s,i)==c)
+            Count++;
+    }
+    return Count;
 }
 
 void String_CompressEsc(String* s){
@@ -193,7 +231,7 @@ void String_CompressEsc(String* s){
     }
 }
 
-String String_FormatA(char* FormatCStr,va_list args){
+String String_FormatA(const char* FormatCStr,va_list args){
     String s = String_New();
     int Size = CStr_Size(FormatCStr);
     //int Count = CStr_CountOf(FormatCStr,'%');
@@ -203,6 +241,7 @@ String String_FormatA(char* FormatCStr,va_list args){
         if(c=='%'){
             i++;
             char fc = FormatCStr[i];
+            
             if(fc=='s'){
                 char* out = va_arg(args,char*);
                 if(out)    String_Append(&s,out);
@@ -214,6 +253,9 @@ String String_FormatA(char* FormatCStr,va_list args){
             }else if(fc=='d'){
                 Number out = va_arg(args,Number);
                 String_AppendNumber(&s,out);
+            }else if(fc=='u'){
+                unsigned int out = va_arg(args,unsigned int);
+                String_AppendNumber(&s,out);
             }else if(fc=='f'){
                 Double out = va_arg(args,Double);
                 String_AppendDouble(&s,out);
@@ -222,7 +264,7 @@ String String_FormatA(char* FormatCStr,va_list args){
                 String_AppendBoolean(&s,out);
             }else if(fc=='x'){
                 Number out = va_arg(args,Number);
-                CStr app = U64_Get_X(out);
+                CStr app = (CStr)U64_Get_X(out);
                 String_Append(&s,app);
                 CStr_Free(&app);
             }
@@ -233,7 +275,7 @@ String String_FormatA(char* FormatCStr,va_list args){
 
     return s;
 }
-String String_Format(char* FormatCStr,...){
+String String_Format(const char* FormatCStr,...){
     va_list args;
     va_start(args,FormatCStr);
     String s = String_FormatA(FormatCStr,args);
@@ -241,13 +283,13 @@ String String_Format(char* FormatCStr,...){
     return s;
 }
 
-CStr CStr_FormatA(char* FormatCStr,va_list args){
+CStr CStr_FormatA(const char* FormatCStr,va_list args){
     String s = String_FormatA(FormatCStr,args);
     CStr ret = String_CStr(&s);
     String_Free(&s);
     return ret;
 }
-CStr CStr_Format(char* FormatCStr,...){
+CStr CStr_Format(const char* FormatCStr,...){
     va_list args;
     va_start(args,FormatCStr);
     String s = String_FormatA(FormatCStr,args);
@@ -276,6 +318,15 @@ void String_Appendf(String* s,char* FormatCStr,...){
     va_end(args);
 
     String_AppendString(s,&app);
+    String_Free(&app);
+}
+void String_Addf(String* s,int index,char* FormatCStr,...){
+    va_list args;
+    va_start(args,FormatCStr);
+    String app = String_FormatA(FormatCStr,args);
+    va_end(args);
+
+    String_AddString(s,&app,index);
     String_Free(&app);
 }
 void String_RemoveAll(String* s,char c){
@@ -307,45 +358,45 @@ int String_TransformY(String* s,int Pos){
     return Lines;
 }
 
-int String_FirstCharOfLineLast(String* s,int Line,int FirstCharBefore,int LastCharBefore,int LineBefore){
-    if(Line==0)             return 0;
-    if(Line==LineBefore+1)  return LastCharBefore+1;
+int String_FirstCharOfLineLast(String* s,int ln,int FirstCharBefore,int LastCharBefore,int LineBefore){
+    if(ln==0)             return 0;
+    if(ln==LineBefore+1)  return LastCharBefore+1;
     int Lines = LineBefore+1;
     for(int i = LastCharBefore+1;i<s->size;i++){
         char c = String_Get(s,i);
         if(c=='\n' || i==s->size-1){
             Lines++;
-            if(Lines==Line) return i+1;
+            if(Lines==ln) return i+1;
         }
     }
     return s->size;
 }
-int String_LastCharOfLineLast(String* s,int Line,int FirstCharBefore,int LastCharBefore,int LineBefore){
-    if(Line==LineBefore) return LastCharBefore;
+int String_LastCharOfLineLast(String* s,int ln,int FirstCharBefore,int LastCharBefore,int LineBefore){
+    if(ln==LineBefore) return LastCharBefore;
     int Lines = LineBefore+1;
     for(int i = LastCharBefore+1;i<s->size;i++){
         char c = String_Get(s,i);
         if(c=='\n'){
-            if(Lines==Line) return i;
+            if(Lines==ln) return i;
             Lines++;
         }
         if(i==s->size-1){
-            if(Lines==Line) return i+1;
+            if(Lines==ln) return i+1;
             Lines++;
         }
     }
     return s->size;
 }
 
-int String_FirstCharOfLine(String* s,int Line){
-    return String_FirstCharOfLineLast(s,Line,-1,-1,-1);
+int String_FirstCharOfLine(String* s,int ln){
+    return String_FirstCharOfLineLast(s,ln,-1,-1,-1);
 }
-int String_LastCharOfLine(String* s,int Line){
-    return String_LastCharOfLineLast(s,Line,-1,-1,-1);
+int String_LastCharOfLine(String* s,int ln){
+    return String_LastCharOfLineLast(s,ln,-1,-1,-1);
 }
 
-int String_CharsInLine(String* s,int Line){
-    int CharBegin = String_FirstCharOfLine(s,Line);
+int String_CharsInLine(String* s,int ln){
+    int CharBegin = String_FirstCharOfLine(s,ln);
     int i = CharBegin;
     for(;i<s->size;i++){
         char c = String_Get(s,i);
@@ -353,16 +404,34 @@ int String_CharsInLine(String* s,int Line){
     }
     return i - CharBegin;
 }
-int String_LineOfChar(String* s,int Char){
+int String_LineOfChar(String* s,int ch){
     int Lines = 0;
     int i = 0;
-    for(;i<s->size && i<Char;i++){
+    for(;i<s->size && i<ch;i++){
         char c = String_Get(s,i);
         if(c=='\n'){
             Lines++;
         }
     }
     return Lines;
+}
+
+CStr Vec_CStr_AddUp(Vec_CStr* v,char c){
+    String buffer = String_New();
+    for(int i = 0;i<v->size;i++){
+        CStr cstr = *(CStr*)Vector_Get(v,i);
+        String_Append(&buffer,cstr);
+        if(i + 1 < v->size)
+            String_AppendChar(&buffer,c);
+    }
+    String_AppendChar(&buffer,'\0');
+    return (CStr)buffer.Memory;
+}
+void Vec_CStr_Print(Vec_CStr* v){
+    for(int i = 0;i<v->size;i++){
+        CStr cstr = *(CStr*)Vector_Get(v,i);
+        printf("(%d) %s\n",i,cstr);
+    }
 }
 
 #endif

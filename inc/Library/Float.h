@@ -139,45 +139,63 @@ F32 F32_ISqrt(F32 a){
 
     return y;
 }
-
 F32 F32_Min(F32 a,F32 b){
     return a<b?a:b;
 }
 F32 F32_Max(F32 a,F32 b){
     return a>b?a:b;
 }
-
-
 F32 F32_LeakyRelu(F32 a){
     return F32_Max(0.1f * a,a);
 }
 F32 F32_LeakyRelu_D(F32 a){
     return a >= 0.0f ? 1.0f : 0.1f;
 }
-
 F32 F32_Relu(F32 a){
     return F32_Max(0.0f,a);
 }
 F32 F32_Relu_D(F32 a){
     return a >= 0.0f ? 1.0f : 0.0f;
 }
-
 F32 F32_Sigmoid(F32 a){
     return 1.0f / (1.0f + expf(-a));
 }
 F32 F32_Sigmoid_D(F32 a){
     return F32_Sigmoid(a) * (1 - F32_Sigmoid(a));
 }
-
 F32 F32_Tanh(F32 a){
     return tanhf(a);
 }
 F32 F32_Tanh_D(F32 a){
     return tanhf(a);
 }
-
 F32 F32_Krung(F32 a,F32 p){
     return F32_Sqrt(F32_Abs(a / p)) * p * F32_Sign(a);
+}
+F32 F32_Bino(F32 a){
+    return powf(F32_E,-(a * a));
+}
+
+F32 F32_SAbs(F32 value,F32 lambda){
+    return sqrtf(value * value + lambda);
+}
+F32 F32_SSign(F32 value,F32 lambda){
+    return value / sqrtf(value * value + lambda);
+}
+F32 F32_SRelu(F32 value,F32 lambda){
+    return (value + sqrtf(value * value + lambda)) * 0.5f;
+}
+F32 F32_SSat(F32 value,F32 lambda){
+    const F32 valuem1 = value - 1.0f;
+    return (1.0f + sqrtf(value * value + lambda) - sqrtf(valuem1 * valuem1 + lambda)) * 0.5f;
+}
+F32 F32_SMax(F32 value1,F32 value2,F32 lambda){
+    const F32 value12 = value1 - value2;
+    return (value1 + value2 + sqrtf(value12 * value12 + lambda)) * 0.5f;
+}
+F32 F32_SMin(F32 value1,F32 value2,F32 lambda){
+    const F32 value12 = value1 - value2;
+    return (value1 + value2 - sqrtf(value12 * value12 + lambda)) * 0.5f;
 }
 
 void F32_Swap(F32* a,F32* b){
@@ -185,7 +203,6 @@ void F32_Swap(F32* a,F32* b){
     *a = *b;
     *b = c;
 }
-
 int F32_Cmp_G(void* a,void* b){
     F32 fa = *(F32*)a;
     F32 fb = *(F32*)b;
@@ -197,7 +214,6 @@ int F32_Cmp_L(void* a,void* b){
     return fa < fb ? 1 : (fa == fb ? 0 : -1);
 }
 
-
 F64 F64_toRad(F64 a) {
 	return (F64) (a / 180.0f * F64_PI);
 }
@@ -205,7 +221,7 @@ F64 F64_toDeg(F64 a) {
 	return (F64) (a / F64_PI * 180.0f);
 }
 F64 F64_Abs(F64 value){
-    return value>0?value:-value;
+    return value > 0.0? value : -value;
 }
 F64 F64_Floor(F64 value){
     return (F64)floorf(value);
@@ -274,10 +290,30 @@ F64 F64_Min(F64 a,F64 b){
 F64 F64_Max(F64 a,F64 b){
     return a>b?a:b;
 }
-F64 F64_Clamp(F64 v,F64 lo,F64 hi) {
-    if (v < lo) return lo;
-    if (v > hi) return hi;
-    return v;
+F64 F64_Clamp(F64 a,F64 min,F64 max){
+	return a<min?min:(a>max?max:a);
+}
+
+F64 F64_SAbs(F64 value,F64 lambda){
+    return sqrt(value * value + lambda);
+}
+F64 F64_SSign(F64 value,F64 lambda){
+    return value / sqrt(value * value + lambda);
+}
+F64 F64_SRelu(F64 value,F64 lambda){
+    return (value + sqrt(value * value + lambda)) * 0.5;
+}
+F64 F64_SSat(F64 value,F64 lambda){
+    const F64 valuem1 = value - 1.0;
+    return (1.0 + sqrt(value * value + lambda) - sqrt(valuem1 * valuem1 + lambda)) * 0.5;
+}
+F64 F64_SMax(F64 value1,F64 value2,F64 lambda){
+    const F64 value12 = value1 - value2;
+    return (value1 + value2 + sqrt(value12 * value12 + lambda)) * 0.5;
+}
+F64 F64_SMin(F64 value1,F64 value2,F64 lambda){
+    const F64 value12 = value1 - value2;
+    return (value1 + value2 - sqrt(value12 * value12 + lambda)) * 0.5;
 }
 
 F64 SinTable[] = {
@@ -399,12 +435,11 @@ F64 F64_Sin_It(F64 x){
     F64 It = v1 + (v2 - v1) * TablePlace;
     return It;
 }
-
 F64 F64_Pow10(F64 a){
     F64 n = 1.0;
-    const long absv = (long)F64_Abs(a);
+    const long long absv = (long long)F64_Abs(a);
     const F64 value = a > 0 ? 10.0 : 0.1;
-    for(int i = 0;i<absv;i++)
+    for(long long i = 0;i<absv;i++)
         n *= value;
     return n;
 }

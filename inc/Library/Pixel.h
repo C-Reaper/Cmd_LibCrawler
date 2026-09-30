@@ -2,6 +2,7 @@
 #define PIXEL_H
 
 #include <math.h>
+#include "Float.h"
 
 #define CLEAR		    0x00000000
 #define BLACK		    0xFF000000
@@ -36,9 +37,9 @@
 #define DARK_ROSE       0xFFAA8087
 #define ROSE            0xFFFFC0CB
 #define LIGHT_ROSE      0xFFFFE4ED
-#define DARK_BROWN      0xFF633919
-#define BROWN           0xFF855A2A
-#define LIGHT_BROWN     0xFFF76F6F
+#define DARK_BROWN      0xFF533D1E
+#define BROWN           0xFF927553
+#define LIGHT_BROWN     0xFFC7A358
 #define GOLD            0xFFFFD700
 #define SILBER          0xFFC0C0C0
 
@@ -64,21 +65,33 @@ typedef struct FColor{
     float a;
 } FColor;
 
+FColor FColor_Alpha(FColor c1,FColor c2){
+    const float pa = c2.a * (1.0f - c1.a);
+    const float oa = c1.a + pa;
+    const float ioa = 1.0f / oa;
+
+    return (FColor){
+        (c1.r * c1.a + c2.r * pa) * ioa,
+        (c1.g * c1.a + c2.g * pa) * ioa,
+        (c1.b * c1.a + c2.b * pa) * ioa,
+        c1.a + oa
+    };
+}
 int Pixel_R(Pixel p){
-    return (Color){ {},.p = p }.r;
+    return (Color){ .p = p }.r;
 }
 int Pixel_G(Pixel p){
-    return (Color){ {},.p = p }.g;
+    return (Color){ .p = p }.g;
 }
 int Pixel_B(Pixel p){
-    return (Color){ {},.p = p }.b;
+    return (Color){ .p = p }.b;
 }
 int Pixel_A(Pixel p){
-    return (Color){ {},.p = p }.a;
+    return (Color){ .p = p }.a;
 }
 
 Pixel Pixel_SetA(Pixel p,unsigned char a){
-    Color col = { {},.p = p };
+    Color col = { .p = p };
     col.a = a;
     return col.p;
 }
@@ -115,18 +128,10 @@ Pixel Pixel_Alpha(Pixel p1,Pixel p2){
 }
 Pixel Pixel_byFColor(FColor fc){
     Color c;
-    fc.b = fc.b>=0.0f ? fc.b : 0.0f;
-    fc.g = fc.g>=0.0f ? fc.g : 0.0f;
-    fc.r = fc.r>=0.0f ? fc.r : 0.0f;
-    fc.a = fc.a>=0.0f ? fc.a : 0.0f;
-    fc.b = fc.b<=1.0f ? fc.b : 1.0f;
-    fc.g = fc.g<=1.0f ? fc.g : 1.0f;
-    fc.r = fc.r<=1.0f ? fc.r : 1.0f;
-    fc.a = fc.a<=1.0f ? fc.a : 1.0f;
-    c.b = (unsigned char)(fc.b * 255.0f);
-    c.g = (unsigned char)(fc.g * 255.0f);
-    c.r = (unsigned char)(fc.r * 255.0f);
-    c.a = (unsigned char)(fc.a * 255.0f);
+    c.b = (unsigned char)(F32_Clamp(fc.b,0.0f,1.0f) * 255.0f);
+    c.g = (unsigned char)(F32_Clamp(fc.g,0.0f,1.0f) * 255.0f);
+    c.r = (unsigned char)(F32_Clamp(fc.r,0.0f,1.0f) * 255.0f);
+    c.a = (unsigned char)(F32_Clamp(fc.a,0.0f,1.0f) * 255.0f);
     return c.p;
 }
 
@@ -226,14 +231,14 @@ Pixel Pixel_AvgC(Pixel* p,int c){
     return col.p;
 }
 Pixel Pixel_Sub(Pixel p,unsigned char v){
-    Color col = { {},.p = p };
+    Color col = { .p = p };
     col.r = ((short)col.r - (short)v) >= 0 ? col.r - v : 0;
     col.g = ((short)col.g - (short)v) >= 0 ? col.g - v : 0;
     col.b = ((short)col.b - (short)v) >= 0 ? col.b - v : 0;
     return col.p;
 }
 Pixel Pixel_SubA(Pixel p,unsigned char v){
-    Color col = { {},.p = p };
+    Color col = { .p = p };
     col.r = ((short)col.r - (short)v) >= 0 ? col.r - v : 0;
     col.g = ((short)col.g - (short)v) >= 0 ? col.g - v : 0;
     col.b = ((short)col.b - (short)v) >= 0 ? col.b - v : 0;
@@ -255,14 +260,14 @@ float Pixel_Lightness_N2(Pixel p){
 }
 
 Pixel Pixel_Add(Pixel p,unsigned char v){
-    Color col = { {},.p = p };
+    Color col = { .p = p };
     col.r = ((short)col.r + (short)v) <= 255U ? col.r + v : 255U;
     col.g = ((short)col.g + (short)v) <= 255U ? col.g + v : 255U;
     col.b = ((short)col.b + (short)v) <= 255U ? col.b + v : 255U;
     return col.p;
 }
 Pixel Pixel_Mulf(Pixel p,float a){
-    if(a<0.0 || a>1.0f) return CLEAR;
+    if(a<0.0 || a>1.0f) return p;
     
     FColor col = Pixel_toFColor(p);
     col.r = col.r * a;
@@ -284,8 +289,8 @@ Pixel Pixel_Gray_L2(Pixel p){
     return Pixel_toRGBA(l,l,l,1.0f);
 }
 Pixel Pixel_Dist(Pixel p1,Pixel p2){
-    Color col1 = { {},.p = p1 };
-    Color col2 = { {},.p = p2 };
+    Color col1 = { .p = p1 };
+    Color col2 = { .p = p2 };
     col1.r = (col1.r>col2.r ? col1.r : col2.r) - (col1.r<col2.r ? col1.r : col2.r);
     col1.g = (col1.g>col2.g ? col1.g : col2.g) - (col1.g<col2.g ? col1.g : col2.g);
     col1.b = (col1.b>col2.b ? col1.b : col2.b) - (col1.b<col2.b ? col1.b : col2.b);
@@ -293,7 +298,11 @@ Pixel Pixel_Dist(Pixel p1,Pixel p2){
 }
 float Pixel_DistF(Pixel p1,Pixel p2){
     const Color delta = { .p = Pixel_Dist(p1,p2) };
-    float length = sqrtf((float)((unsigned int)delta.r * (unsigned int)delta.r + (unsigned int)delta.g * (unsigned int)delta.g + (unsigned int)delta.b * (unsigned int)delta.b));
+    float length = sqrtf((float)(
+        (unsigned int)delta.r * (unsigned int)delta.r +
+        (unsigned int)delta.g * (unsigned int)delta.g +
+        (unsigned int)delta.b * (unsigned int)delta.b
+    ));
     return length;
 }
 float Pixel_Gray_Dir(Pixel p1,Pixel p2){

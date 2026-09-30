@@ -15,6 +15,8 @@
     #include <synchapi.h>
     #include <processthreadsapi.h>
     #include <mmsystem.h> // timeBeginPeriod/timeEndPeriod if needed
+#elif defined(__EMSCRIPTEN__)
+    #include <emscripten.h>
 #else
     #error "Unsupported platform!"
 #endif
@@ -32,6 +34,8 @@ typedef struct Thread {
 #elif defined(_WIN32)
     HANDLE h;
     DWORD id;
+#elif defined(__EMSCRIPTEN__)
+    int dummy;
 #endif
     void* (*func)(void*);
     void* arg;
@@ -43,7 +47,7 @@ typedef struct Thread {
 
 Thread Thread_New(void* attr,void* (*func)(void*),void* arg){
     Thread t;
-    t.h = 0UL;
+    t.h = (pthread_t)0UL;
     t.attr = attr;
     t.func = func;
     t.arg = arg;
@@ -53,6 +57,7 @@ Thread Thread_New(void* attr,void* (*func)(void*),void* arg){
 }
 Thread Thread_Null(){
     Thread t;
+    t.h = (pthread_t)0UL;
     t.attr = NULL;
     t.func = NULL;
     t.arg = NULL;
@@ -62,7 +67,12 @@ Thread Thread_Null(){
 }
 void* Thread_Starter(Thread* t){
     t->running = 1;
-    t->ret = t->func(t->arg);
+    
+    if(t->func)
+        t->ret = t->func(t->arg);
+    else
+        t->ret = NULL;
+
     t->running = 0;
     return t->ret;
 }
@@ -226,7 +236,6 @@ void Thread_Free(Thread* t){
     Thread_Stop(t);
 }
 
-
 void Thread_Sleep_N(Duration nsecs){
     if(nsecs == 0) return;
 
@@ -255,6 +264,101 @@ void Thread_Sleep_M(Duration msecs){
 }
 void Thread_Sleep_S(Duration secs){
     Sleep(secs * 1000ULL);
+}
+
+#elif defined(__EMSCRIPTEN__)
+
+Thread Thread_New(void* attr,void* (*func)(void*),void* arg){
+    Thread t;
+    t.func = func;
+    t.arg = arg;
+    t.ret = NULL;
+    t.running = 0;
+    return t;
+}
+
+Thread Thread_Null(){
+    Thread t;
+    t.func = NULL;
+    t.arg = NULL;
+    t.ret = NULL;
+    t.running = 0;
+    return t;
+}
+
+void Thread_Start(Thread* t){
+    if(!t->func){
+        printf("[Thread]: No function provided (Emscripten stub)\n");
+        return;
+    }
+
+    t->running = 1;
+
+    // No real OS threads in normal WASM -> simulate
+    printf("[Thread]: Running synchronously (Emscripten stub)\n");
+
+    t->ret = t->func(t->arg);
+
+    t->running = 0;
+}
+
+void Thread_Join(Thread* t){
+    printf("[Thread]: Join not supported in Emscripten (sync mode)\n");
+}
+
+void Thread_Detach(Thread* t){
+    printf("[Thread]: Detach not supported in Emscripten\n");
+}
+
+void Thread_Cancel(Thread* t){
+    t->running = 0;
+    printf("[Thread]: Cancel simulated in Emscripten\n");
+}
+
+void Thread_Term(Thread* t){
+    t->running = 0;
+    printf("[Thread]: Term simulated in Emscripten\n");
+}
+
+void Thread_Int(Thread* t){
+    printf("[Thread]: Interrupt not supported in Emscripten\n");
+}
+
+void Thread_Restart(Thread* t){
+    Thread_Start(t);
+}
+
+void Thread_ChangeRestart(Thread* t,void* (*func)(void*)){
+    t->func = func;
+    Thread_Start(t);
+}
+
+void Thread_Stop(Thread* t){
+    t->running = 0;
+}
+
+void Thread_Free(Thread* t){
+    Thread_Stop(t);
+}
+
+/* Sleep via busy wait */
+void Thread_Sleep_N(Duration nsecs){
+    double start = emscripten_get_now();
+    double target = start + (double)nsecs / 1000000.0;
+
+    while(emscripten_get_now() < target){}
+}
+void Thread_Sleep_U(Duration usecs){
+    Thread_Sleep_N(usecs * 1000ULL);
+}
+void Thread_Sleep_M(Duration msecs){
+    double start = emscripten_get_now();
+    double target = start + (double)msecs;
+
+    while(emscripten_get_now() < target){}
+}
+void Thread_Sleep_S(Duration secs){
+    Thread_Sleep_M(secs * 1000ULL);
 }
 
 #elif defined(__APPLE__)
