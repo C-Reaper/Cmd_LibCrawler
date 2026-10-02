@@ -78,8 +78,6 @@ AlxWindow window;
 #define RenderCStrTex(t,cstr,x,y)                                    Graphics_RenderCStrAlxFontTex(window.Buffer,window.Width,window.Height,&window.font,t,cstr,x,y)
 #define RenderCStrSizeTex(t,cstr,Size,x,y)                           Graphics_RenderCStrSizeAlxFontTex(window.Buffer,window.Width,window.Height,&window.font,t,cstr,Size,x,y)
 
-#define RenderTextBox(tb)                                            Graphics_RenderTextBox(window.Buffer,window.Width,window.Height,tb)
-
 int GetWidth(){
     return window.Width;
 }

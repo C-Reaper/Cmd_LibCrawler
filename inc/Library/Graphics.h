@@ -20,8 +20,6 @@
 #include "String.h"
 #include "Input.h"
 #include "AlxFont.h"
-#include "TextBox.h"
-#include "Scene.h"
 
 #include "../Container/List.h"
 
@@ -98,11 +96,5 @@ void Graphics_Clear(Pixel* Target,int Target_Width,int Target_Height,Pixel c){
 #define Graphics_RenderCStrSizeAlxFont(Target,Target_Width,Target_Height,f,cstr,Size,x,y,Color)                 CStr_RenderSizeAlxFont(Target,Target_Width,Target_Height,f,cstr,Size,x,y,Color)
 #define Graphics_RenderCStrAlxFontTex(Target,Target_Width,Target_Height,f,t,cstr,x,y)                           CStr_RenderAlxFontTex(Target,Target_Width,Target_Height,f,t,cstr,x,y)
 #define Graphics_RenderCStrSizeAlxFontTex(Target,Target_Width,Target_Height,f,t,cstr,Size,x,y)                  CStr_RenderSizeAlxFontTex(Target,Target_Width,Target_Height,f,t,cstr,Size,x,y)
-
-#define Graphics_RenderTextBox(Target,Target_Width,Target_Height,tb)                                            TextBox_Render(Target,Target_Width,Target_Height,tb)
-#define Graphics_RenderLabel(Target,Target_Width,Target_Height,l)                                               Label_Render(Target,Target_Width,Target_Height,l) 
-#define Graphics_RenderButton(Target,Target_Width,Target_Height,b)                                              Button_Render(Target,Target_Width,Target_Height,b) 
-#define Graphics_RenderProgressBar(Target,Target_Width,Target_Height,p)                                         ProgressBar_Render(Target,Target_Width,Target_Height,p) 
-#define Graphics_RenderScene(Target,Target_Width,Target_Height,s)                                               Scene_Render(Target,Target_Width,Target_Height,s) 
 
 #endif // GRAPHICS_H
